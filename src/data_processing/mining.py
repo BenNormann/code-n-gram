@@ -1,9 +1,13 @@
-from pydriller import Repository
+import pandas as pd
 import os
 import csv
 import javalang
 from typing import List, Tuple
-import pandas as pd
+from datetime import datetime
+from pydriller import Repository
+import sys
+
+MAX_METHODS = 25000  # Global parameter for maximum methods to extract
 
 def extract_methods_from_java(code: str) -> List[Tuple[str, str]]:
     """
@@ -23,94 +27,112 @@ def extract_methods_from_java(code: str) -> List[Tuple[str, str]]:
 
         # Traverse the tree to find method declarations
         for _, node in tree.filter(javalang.tree.MethodDeclaration):
-            try:
-                method_name = node.name
-                start_line = node.position.line - 1  # Convert to 0-based indexing
-                
-                # Find the end of the method by tracking braces
-                brace_count = 0
-                end_line = start_line
-                
-                for i, line in enumerate(lines[start_line:], start=start_line):
-                    brace_count += line.count('{') - line.count('}')
-                    if brace_count == 0 and '{' in line:
-                        continue
-                    if brace_count == 0:
-                        end_line = i + 1  # Include the closing brace line
-                        break
-                
-                method_code = '\n'.join(lines[start_line:end_line])
-                methods.append((method_name, method_code))
-                
-            except Exception as e:
-                print(f"Error extracting method {node.name}: {str(e)}")
-                continue
+            method_name = node.name
+
+            # Determine the start and end lines of the method
+            start_line = node.position.line - 1
+            end_line = None
+
+            # Use the body of the method to determine its end position
+            if node.body:
+                last_statement = node.body[-1]
+                if hasattr(last_statement, 'position') and last_statement.position:
+                    end_line = last_statement.position.line
+
+            # Extract method code
+            if end_line:
+                method_code = "\n".join(lines[start_line:end_line+1])
+            else:
+                # If end_line couldn't be determined, extract up to the end of the file
+                method_code = "\n".join(lines[start_line:])
+
+            methods.append((method_name, method_code))
 
     except Exception as e:
-        print(f"Error parsing Java code: {str(e)}")
-        
+        print(f"Error parsing Java code: {e}")
     return methods
 
-def extract_methods_to_csv_from_master(repo_path: str, output_csv: str):
+def extract_methods_to_csv(repo_data: pd.Series, output_csv: str, method_count: int = 0) -> int:
     """
-    Extract methods from Java files in the master branch and save them in a CSV file.
+    Extract methods from Java files in a repository and save them to CSV.
+    Returns the total number of methods extracted.
+    """
+    # Create data directory if it doesn't exist
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
 
-    Args:
-        repo_path (str): Path to the Git repository.
-        output_csv (str): Path to the output CSV file.
-    """
-    total_methods = 0  # Add counter for total methods
-    with open(output_csv, mode='w', newline='', encoding='utf-8') as csvfile:
+    with open(output_csv, mode='a', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(["Commit Hash", "File Name", "Method Name", "Method Code", "Commit Link"])
+        
+        # Only write headers if file is empty
+        if os.path.getsize(output_csv) == 0:
+            csv_writer.writerow([
+                "Branch Name",
+                "Commit Hash",
+                "File Name",
+                "Method Name",
+                "Method Code",
+                "Commit Link"
+            ])
 
-        for commit in Repository(repo_path, only_in_branch="master").traverse_commits():
-            print(f"Processing commit: {commit.hash}")
-
-            for modified_file in commit.modified_files:
-                if modified_file.filename.endswith(".java") and modified_file.source_code:
-                    methods = extract_methods_from_java(modified_file.source_code)
-
-                    for method_name, method_code in methods:
-                        commit_link = f"{repo_path}/commit/{commit.hash}"
-                        csv_writer.writerow([
-                            commit.hash,
-                            modified_file.filename,
-                            method_name,
-                            method_code,
-                            commit_link
-                        ])
-                        total_methods += 1  # Increment counter for each method
-
-                    if methods:
+        repo_name = repo_data['name']
+        default_branch = repo_data['defaultBranch']
+        repo_url = f"https://github.com/{repo_name}"
+        
+        try:
+            print(f"Processing repository: {repo_name}")
+            
+            for commit in Repository(repo_url, only_in_branch=default_branch).traverse_commits():
+                print(f"Processing commit: {commit.hash}")
+                
+                for modified_file in commit.modified_files:
+                    if modified_file.filename.endswith(".java") and modified_file.source_code:
+                        methods = extract_methods_from_java(modified_file.source_code)
+                        
+                        for method_name, method_code in methods:
+                            commit_link = f"{repo_url}/commit/{commit.hash}"
+                            csv_writer.writerow([
+                                default_branch,
+                                commit.hash,
+                                modified_file.filename,
+                                method_name,
+                                method_code,
+                                commit_link
+                            ])
+                            method_count += 1
+                            print(f"Methods extracted: {method_count}")
+                            
+                            if method_count >= MAX_METHODS:
+                                print(f"\nReached limit of {MAX_METHODS} methods")
+                                return method_count
+                        
                         print(f"Extracted methods from {modified_file.filename} in commit {commit.hash}")
 
-    print(f"\nMining completed:")
-    print(f"Total methods extracted: {total_methods}")  # Print final count
+        except Exception as e:
+            print(f"Error processing repository {repo_name}: {e}")
+
+        return method_count
+
+def main():
+    # Load the repository data
+    df = pd.read_csv('./data/initialdata.csv')
+    
+    # Create output file in the data directory
+    output_csv = "./data/extracted_methods.csv"
+    with open(output_csv, 'w', newline='', encoding='utf-8') as f:
+        pass  # Create/clear the file
+    
+    # Filter for Java repositories
+    java_repos = df[df['mainLanguage'] == 'Java']
+    
+    # Process repositories until we hit the method limit
+    total_methods = 0
+    for _, repo in java_repos.iterrows():
+        total_methods = extract_methods_to_csv(repo, output_csv, total_methods)
+        if total_methods >= MAX_METHODS:
+            print(f"Finished: Extracted {total_methods} methods")
+            break
+    
+    print(f"Results saved to {output_csv}")
 
 if __name__ == "__main__":
-    # Setup paths
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(os.path.dirname(current_dir))
-    data_dir = os.path.join(project_root, "data")
-    os.makedirs(data_dir, exist_ok=True)
-    
-    # Input/output files
-    data_csv = os.path.join(data_dir, "data.csv")
-    
-    # Read repository list
-    df_res = pd.read_csv(data_csv)
-    repo_list = [f"https://www.github.com/{name}" for name in df_res['name']]
-    
-    # Process first repository only (matching notebook)
-    if repo_list:
-        repo_url = repo_list[0]
-        output_csv = os.path.join(data_dir, f"extracted_methods.csv")
-        
-        print(f"Processing repository: {repo_url}")
-        print(f"Results will be saved to: {output_csv}")
-        
-        # Extract methods from repository
-        extract_methods_to_csv_from_master(repo_url, output_csv)
-    else:
-        print("No repositories found in input file") 
+    main()
