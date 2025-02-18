@@ -105,7 +105,7 @@ if __name__ == "__main__":
     # Process first repository only (matching notebook)
     if repo_list:
         repo_url = repo_list[0]
-        output_csv = os.path.join(data_dir, f"extracted_methods_{repo_url.split('github.com/')[1].replace('/', '_')}.csv")
+        output_csv = os.path.join(data_dir, f"extracted_methods.csv")
         
         print(f"Processing repository: {repo_url}")
         print(f"Results will be saved to: {output_csv}")
