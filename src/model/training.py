@@ -16,10 +16,10 @@ from tqdm import tqdm
 class NGramModel:
     def __init__(self, n: int = 7, smoothing_k: float = 0.1):
         self.n = n
-        self.smoothing_k = smoothing_k  # Add-k smoothing parameter
-        self.ngrams = defaultdict(lambda: defaultdict(float))  # Changed to float for smoothing
+        self.smoothing_k = smoothing_k
+        self.ngrams = defaultdict(lambda: defaultdict(float)) 
         self.vocab = set()
-        self.context_counts = defaultdict(float)  # Changed to float for smoothing
+        self.context_counts = defaultdict(float)
         
     def tokenize_code(self, code: str) -> List[str]:
         """Tokenize Java code using Pygments."""
