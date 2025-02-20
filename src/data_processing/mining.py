@@ -114,7 +114,7 @@ def extract_methods_to_csv(repo_data: pd.Series, output_csv: str, method_count: 
 
 def main():
     # Load the repository data
-    df = pd.read_csv('./data/initialdata.csv')
+    df = pd.read_csv('./data/data.csv')
     
     # Create output file in the data directory
     output_csv = "./data/extracted_methods.csv"
