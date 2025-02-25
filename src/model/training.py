@@ -21,6 +21,10 @@ class NGramModel:
         self.vocab = set()
         self.context_counts = defaultdict(float)
         
+    def set_n(self, n: int):
+        self.n = n
+        print(f"n has been set to {self.n}")  
+        
     def tokenize_code(self, code: str) -> List[str]:
         """Tokenize Java code using Pygments."""
         lexer = get_lexer_by_name('java')
