@@ -48,7 +48,8 @@ def main():
             print(f"\nTraining model with n-gram size {n}...")
             # Pass the n value and output directory to train_model
             # Assuming train_model accepts these parameters
-            train_model(n=n, output_dir=os.path.join(args.output_dir, f"model_n{n}"))
+            model.set_n = n
+            train_model()
             print(f"Completed training for n={n}")
         
     except Exception as e:
