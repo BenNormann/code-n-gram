@@ -77,15 +77,24 @@ def plot_results(metrics: Dict, output_dir: str):
     plt.savefig(os.path.join(output_dir, 'performance_metrics.png'))
     plt.close()
 
-def save_metrics(metrics: Dict, output_dir: str):
+def save_metrics(metrics: Dict, output_dir: str, overwrite: bool = True):
     """
     Save metrics to JSON file.
     
     Args:
         metrics: Dictionary containing evaluation metrics
         output_dir: Directory to save metrics
+        overwrite: Whether to overwrite existing metrics file (default: True)
     """
-    with open(os.path.join(output_dir, 'metrics.json'), 'w') as f:
+    metrics_file = os.path.join(output_dir, 'metrics.json')
+    
+    if not overwrite and os.path.exists(metrics_file):
+        with open(metrics_file, 'r') as f:
+            existing_metrics = json.load(f)
+        existing_metrics.update(metrics)
+        metrics = existing_metrics
+    
+    with open(metrics_file, 'w') as f:
         json.dump(metrics, f, indent=2)
 
 def print_metrics(metrics: Dict):
