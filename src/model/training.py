@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import os
 import json
 from tqdm import tqdm
+from model.evaluation import evaluate_model, save_metrics, print_metrics
 
 class NGramModel:
     def __init__(self, n: int = 7, smoothing_k: float = 0.1):
@@ -80,67 +81,14 @@ class NGramModel:
         
         return max(predictions.items(), key=lambda x: x[1])
 
-    def evaluate(self, test_methods: List[str]) -> Dict:
-        """Evaluate model with proper padding and perplexity calculation."""
-        correct_predictions = 0
-        total_predictions = 0
-        total_log_prob = 0
-        
-        print("\nEvaluating on test methods...")
-        for method in tqdm(test_methods, desc="Evaluating"):
-            tokens = self.tokenize_code(method)
-            padded_tokens = self.pad_tokens(tokens)
-            
-            for i in range(len(padded_tokens) - self.n + 1):
-                context = tuple(padded_tokens[i:i + self.n - 1])
-                actual = padded_tokens[i + self.n - 1]
-                prediction = self.predict_next(context)
-                
-                if prediction:
-                    pred_token, prob = prediction
-                    if actual == pred_token:
-                        correct_predictions += 1
-                    total_predictions += 1
-                    
-                    if prob > 0:
-                        total_log_prob += math.log2(prob)
-                    else:
-                        total_log_prob += math.log2(self.smoothing_k)
-
-        # Calculate metrics
-        accuracy = correct_predictions / total_predictions if total_predictions > 0 else 0
-        perplexity = 2 ** (-total_log_prob / total_predictions) if total_predictions > 0 else float('inf')
-        
-        return {
-            'accuracy': accuracy,
-            'perplexity': perplexity,
-            'total_predictions': total_predictions,
-            'correct_predictions': correct_predictions,
-            'vocabulary_size': len(self.vocab)
-        }
-
-    def plot_results(self, metrics: Dict, output_dir: str):
-        """Plot evaluation results."""
-        plt.figure(figsize=(8, 6))
-        metrics_to_plot = {
-            'Accuracy': metrics['accuracy'],
-            'Normalized Perplexity': min(1.0, 1/metrics['perplexity'])  # Normalize for visualization
-        }
-        
-        sns.barplot(x=list(metrics_to_plot.keys()), y=list(metrics_to_plot.values()))
-        plt.title('Model Performance Metrics')
-        plt.ylim(0, 1)
-        for i, v in enumerate(metrics_to_plot.values()):
-            plt.text(i, v + 0.01, f'{v:.3f}', ha='center')
-        plt.savefig(os.path.join(output_dir, 'performance_metrics.png'))
-        plt.close()
-
 def main():
     parser = argparse.ArgumentParser(description='Train and evaluate N-gram model')
     parser.add_argument('--data', type=str, default='./data/processed_methods.csv')
     parser.add_argument('--output_dir', type=str, default='./results')
     parser.add_argument('--n', type=int, default=7)
     parser.add_argument('--smoothing', type=float, default=0.1)
+    parser.add_argument('--overwrite_metrics', type=bool, default=True,
+                      help='Whether to overwrite existing metrics.json')
     args = parser.parse_args()
     
     os.makedirs(args.output_dir, exist_ok=True)
@@ -154,26 +102,15 @@ def main():
     print(f"Training set: {len(train_methods)} methods")
     print(f"Test set: {len(test_methods)} methods")
     
-    # Train and evaluate
+    # Train model
     model = NGramModel(n=args.n, smoothing_k=args.smoothing)
     print(f"\nTraining {args.n}-gram model...")
     model.train(train_methods)
     
-    print("\nEvaluating model...")
-    metrics = model.evaluate(test_methods)
-    
-    # Print results
-    print("\nResults:")
-    print(f"Accuracy: {metrics['accuracy']:.3f}")
-    print(f"Perplexity: {metrics['perplexity']:.3f}")
-    print(f"Vocabulary size: {metrics['vocabulary_size']}")
-    print(f"Total predictions: {metrics['total_predictions']}")
-    print(f"Correct predictions: {metrics['correct_predictions']}")
-    
-    # Save results
-    model.plot_results(metrics, args.output_dir)
-    with open(os.path.join(args.output_dir, 'metrics.json'), 'w') as f:
-        json.dump(metrics, f, indent=2)
+    # Evaluate model
+    metrics = evaluate_model(model, test_methods)
+    print_metrics(metrics)
+    save_metrics(metrics, args.output_dir, args.overwrite_metrics)
     
     print(f"\nResults saved to {args.output_dir}")
 

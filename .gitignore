@@ -3,3 +3,5 @@
 /data/processed_methods.csv
 /results/metrics.json
 /results/performance_metrics.png
+/src/data_processing/__pycache__/*
+/src/model/__pycache__/*
