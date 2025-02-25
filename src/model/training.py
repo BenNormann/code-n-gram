@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import os
 import json
 from tqdm import tqdm
-from model.evaluation import evaluate_model, save_metrics, print_metrics
+from evaluation import evaluate_model, save_metrics, print_metrics
 
 class NGramModel:
     def __init__(self, n: int = 7, smoothing_k: float = 0.1):

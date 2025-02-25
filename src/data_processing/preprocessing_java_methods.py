@@ -59,89 +59,83 @@ def remove_boilerplate_methods(data: pd.DataFrame, method_column: str = "Method 
 
 def remove_comments_from_dataframe(df: pd.DataFrame, method_column: str, language: str) -> pd.DataFrame:
     """
-    Removes comments from code in a DataFrame and adds a new column with cleaned methods.
+    Removes comments from code in a DataFrame and formats the methods with proper line breaks and indentation.
     Uses Pygments for accurate tokenization and comment removal.
     """
     print(f"Removing comments from methods...")
     initial_size = len(df)
     
-    def remove_comments(code: str) -> str:
+    def remove_comments_and_format(code: str) -> str:
         if not isinstance(code, str):
             return ''
             
         lexer = get_lexer_by_name(language)
         tokens = []
-        last_token_type = None
+        current_line = []
+        formatted_lines = []
+        indent_level = 0
         
-        # First pass: collect tokens without comments
         for ttype, value in lexer.get_tokens(code):
-            # Skip all types of comments
+            # Skip comments
             if Token.Comment in ttype or 'Comment' in str(ttype):
                 continue
                 
-            # Handle whitespace
-            if ttype in Token.Text:
-                if last_token_type and last_token_type not in Token.Text:
-                    tokens.append(' ')
-            else:
-                tokens.append(value)
-            
-            last_token_type = ttype
-        
-        # Join tokens and do initial cleanup
-        code_str = ''.join(tokens)
-        
-        # Format the code
-        formatted_lines = []
-        current_line = []
-        depth = 0
-        
-        for char in code_str:
-            if char == '{':
-                current_line.append(' {')
-                formatted_lines.append(''.join(current_line))
-                current_line = []
-                depth += 1
-            elif char == '}':
-                if current_line:
-                    formatted_lines.append('    ' * depth + ''.join(current_line))
-                depth = max(0, depth - 1)
-                formatted_lines.append('    ' * depth + '}')
-                current_line = []
-            elif char == ';':
-                current_line.append(';')
-                formatted_lines.append('    ' * depth + ''.join(current_line))
-                current_line = []
-            elif char == '\n':
-                if current_line:
-                    formatted_lines.append('    ' * depth + ''.join(current_line))
+            # Handle different token types
+            if Token.Text in ttype:
+                if '\n' in value:
+                    # Process the current line
+                    if current_line:
+                        line = ''.join(current_line).strip()
+                        if line:
+                            formatted_lines.append('    ' * indent_level + line)
                     current_line = []
+                elif not value.isspace():
+                    current_line.append(value)
             else:
-                current_line.append(char)
+                # Handle braces for indentation
+                if value == '{':
+                    current_line.append(' {')
+                    # Process the current line
+                    line = ''.join(current_line).strip()
+                    if line:
+                        formatted_lines.append('    ' * indent_level + line)
+                    current_line = []
+                    indent_level += 1
+                elif value == '}':
+                    # Process any content before the closing brace
+                    if current_line:
+                        line = ''.join(current_line).strip()
+                        if line:
+                            formatted_lines.append('    ' * indent_level + line)
+                    current_line = []
+                    indent_level = max(0, indent_level - 1)
+                    formatted_lines.append('    ' * indent_level + '}')
+                elif value == ';':
+                    current_line.append(';')
+                    # Process the current line
+                    line = ''.join(current_line).strip()
+                    if line:
+                        formatted_lines.append('    ' * indent_level + line)
+                    current_line = []
+                else:
+                    # Add space before and after operators
+                    if ttype in Token.Operator:
+                        current_line.append(f' {value} ')
+                    else:
+                        current_line.append(value)
         
+        # Process any remaining content
         if current_line:
-            formatted_lines.append('    ' * depth + ''.join(current_line))
+            line = ''.join(current_line).strip()
+            if line:
+                formatted_lines.append('    ' * indent_level + line)
         
-        # Clean up extra whitespace while preserving structure
-        formatted_lines = [line.strip() for line in formatted_lines]
-        formatted_lines = [line for line in formatted_lines if line]
-        
-        # Add proper spacing around parentheses and operators
-        result = []
-        for line in formatted_lines:
-            # Fix spacing around operators
-            line = re.sub(r'([=<>!&|+\-*/%])', r' \1 ', line)
-            line = re.sub(r'\s+([,;])', r'\1', line)
-            line = re.sub(r'\(\s+', '(', line)
-            line = re.sub(r'\s+\)', ')', line)
-            line = re.sub(r'\s+', ' ', line)
-            result.append(line.strip())
-        
-        return '\n'.join(result)
+        # Join lines with proper line breaks
+        return '\n'.join(formatted_lines)
 
-    # Apply comment removal
+    # Apply comment removal and formatting
     df = df.copy()
-    df[method_column] = df[method_column].apply(remove_comments)
+    df[method_column] = df[method_column].apply(remove_comments_and_format)
     
     # Remove methods that became empty after comment removal
     df = df[df[method_column].str.len() > 0]
@@ -205,6 +199,12 @@ def preprocess_methods(input_csv: str, output_csv: str, language: str = "java") 
     # Only keep columns that exist in the DataFrame
     final_columns = [col for col in final_columns if col in df.columns]
     
+    # Rename the Method Code column to match what training.py expects
+    df = df.rename(columns={method_column: "Method Code No Comments"})
+    
+    # Update final_columns list with new column name
+    final_columns = [col if col != method_column else "Method Code No Comments" for col in final_columns]
+    
     # Save processed methods with only the necessary columns
     df[final_columns].to_csv(output_csv, index=False)
     print(f"\nProcessed methods saved to: {output_csv}")
@@ -213,7 +213,7 @@ def preprocess_methods(input_csv: str, output_csv: str, language: str = "java") 
     # Print a sample to verify content
     if len(df) > 0:
         print("\nSample processed method:")
-        print(df[method_column].iloc[0])
+        print(df["Method Code No Comments"].iloc[0])
 
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
