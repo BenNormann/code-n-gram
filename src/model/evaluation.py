@@ -55,28 +55,6 @@ def evaluate_model(model, test_methods: List[str]) -> Dict:
         'vocabulary_size': len(model.vocab)
     }
 
-def plot_results(metrics: Dict, output_dir: str):
-    """
-    Plot and save evaluation results.
-    
-    Args:
-        metrics: Dictionary containing evaluation metrics
-        output_dir: Directory to save plots
-    """
-    plt.figure(figsize=(8, 6))
-    metrics_to_plot = {
-        'Accuracy': metrics['accuracy'],
-        'Normalized Perplexity': min(1.0, 1/metrics['perplexity'])
-    }
-    
-    sns.barplot(x=list(metrics_to_plot.keys()), y=list(metrics_to_plot.values()))
-    plt.title('Model Performance Metrics')
-    plt.ylim(0, 1)
-    for i, v in enumerate(metrics_to_plot.values()):
-        plt.text(i, v + 0.01, f'{v:.3f}', ha='center')
-    plt.savefig(os.path.join(output_dir, 'performance_metrics.png'))
-    plt.close()
-
 def save_metrics(metrics: Dict, output_dir: str, overwrite: bool = True):
     """
     Save metrics to JSON file.

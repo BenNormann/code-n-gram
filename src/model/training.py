@@ -26,7 +26,7 @@ class NGramModel:
         self.context_counts = defaultdict(float)
         
     def tokenize_code(self, code: str) -> List[str]:
-        """Tokenize Java code using Pygments."""
+        # Tokenize Java code using Pygments.
         lexer = get_lexer_by_name('java')
         tokens = []
         
@@ -38,11 +38,10 @@ class NGramModel:
         return tokens
 
     def pad_tokens(self, tokens: List[str]) -> List[str]:
-        """Add start and end tokens to a sequence."""
+        # Add start and end tokens to a sequence
         return ['<START>'] * (self.n - 1) + tokens + ['<END>']
 
     def train(self, methods: List[str]):
-        """Train the n-gram model with smoothing."""
         print("\nProcessing training methods...")
         for method in tqdm(methods, desc="Training"):
             tokens = self.tokenize_code(method)
