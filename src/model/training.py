@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 import os
 import json
 from tqdm import tqdm
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
 from evaluation import evaluate_model, save_metrics, print_metrics
 
 class NGramModel:
@@ -89,6 +92,8 @@ def main():
     parser.add_argument('--smoothing', type=float, default=0.1)
     parser.add_argument('--overwrite_metrics', type=bool, default=True,
                       help='Whether to overwrite existing metrics.json')
+    parser.add_argument('--eval', action='store_true',
+                      help='Run in evaluation mode with limited samples')
     args = parser.parse_args()
     
     os.makedirs(args.output_dir, exist_ok=True)
@@ -96,6 +101,12 @@ def main():
     # Load and split data
     print("Loading and preparing data...")
     methods = pd.read_csv(args.data)["Method Code No Comments"].dropna().tolist()
+    
+    # Limit samples in eval mode
+    if args.eval and len(methods) > 500:
+        print("\nRunning in evaluation mode - limiting to 500 samples")
+        methods = methods[:500]
+        
     train_methods, test_methods = train_test_split(methods, test_size=0.2, random_state=42)
     
     print(f"\nData Split:")

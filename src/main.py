@@ -30,17 +30,20 @@ def ensure_data_exists(data_dir: str, repo_list: str) -> bool:
         print("\nPreprocessing extracted methods...")
         preprocess_methods(extracted_methods, processed_methods, language="java")
 
-def run_training_for_n(n: int, data_dir: str, output_dir: str, metrics_dict: dict):
+def run_training_for_n(n: int, data_dir: str, output_dir: str, metrics_dict: dict, eval_mode: bool = True, overwrite: bool = False):
     """Run training for a specific n value and update metrics dictionary."""
-    print(f"\nTraining model with n={n}")
+    print(f"\nTraining model with n={n} {'(eval mode)' if eval_mode else '(full mode)'}")
     import sys
     sys.argv = [
         'training.py',
         '--data', os.path.join(data_dir, "processed_methods.csv"),
         '--output_dir', output_dir,
         '--n', str(n),
-        '--overwrite_metrics', 'False'  # Don't overwrite, we'll handle it here
+        '--overwrite_metrics', str(overwrite)
     ]
+    
+    if eval_mode:
+        sys.argv.append('--eval')
     
     metrics_file = os.path.join(output_dir, 'metrics.json')
     train_model()
@@ -58,6 +61,20 @@ def run_training_for_n(n: int, data_dir: str, output_dir: str, metrics_dict: dic
         'correct_predictions': n_metrics['correct_predictions']
     }
 
+def find_best_n(metrics_dict: dict) -> int:
+    """Find the n value with the lowest perplexity score."""
+    best_n = None
+    best_perplexity = float('inf')
+    
+    for n_key, metrics in metrics_dict.items():
+        n = int(n_key.split('=')[1])
+        perplexity = metrics['perplexity']
+        if perplexity < best_perplexity:
+            best_perplexity = perplexity
+            best_n = n
+    
+    return best_n
+
 def main():
     parser = argparse.ArgumentParser(description='Complete pipeline for code completion model')
     parser.add_argument('--repo_list', type=str, default='./data/data.csv',
@@ -72,18 +89,30 @@ def main():
         # Step 1: Ensure data pipeline is complete
         ensure_data_exists(args.data_dir, args.repo_list)
         
-        # Step 2: Train and evaluate models for n=2 to n=7
+        # Step 2: Train and evaluate models for n=2 to n=7 in eval mode
         metrics_dict = {}
         
         for n in range(2, 8):  # 2 to 7 inclusive
-            run_training_for_n(n, args.data_dir, args.output_dir, metrics_dict)
+            # Only overwrite metrics.json for the first model (n=2)
+            run_training_for_n(n, args.data_dir, args.output_dir, metrics_dict, 
+                             eval_mode=True, overwrite=(n == 2))
         
-        # Save combined metrics
-        metrics_file = os.path.join(args.output_dir, 'metrics.json')
+        # Save evaluation metrics
+        metrics_file = os.path.join(args.output_dir, 'metrics_eval.json')
         with open(metrics_file, 'w') as f:
             json.dump(metrics_dict, f, indent=2)
         
-        print("\nFinal combined metrics saved to metrics.json")
+        # Find best n value based on perplexity
+        best_n = find_best_n(metrics_dict)
+        print(f"\nBest model found: n={best_n} with perplexity={metrics_dict[f'n={best_n}']['perplexity']}")
+        
+        # Train full model with best n value
+        print("\nTraining full model with optimal n value...")
+        full_metrics = {}
+        run_training_for_n(best_n, args.data_dir, args.output_dir, full_metrics, 
+                          eval_mode=False, overwrite=True)
+        
+        print("\nFinal model training complete. Results saved to metrics.json")
         
     except Exception as e:
         print(f"\nError: {str(e)}")

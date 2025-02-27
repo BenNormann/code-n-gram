@@ -2,6 +2,7 @@
 /data/extracted_methods.csv
 /data/processed_methods.csv
 /results/metrics.json
+/results/metrics_eval.json
 /results/performance_metrics.png
 /src/data_processing/__pycache__/*
 /src/model/__pycache__/*
