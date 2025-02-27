@@ -97,7 +97,7 @@ def main():
     
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # Load and split data
+    # Load data
     print("Loading and preparing data...")
     methods = pd.read_csv(args.data)["Method Code No Comments"].dropna().tolist()
     
@@ -105,10 +105,12 @@ def main():
     if args.eval and len(methods) > 500:
         print("\nRunning in evaluation mode - limiting to 500 samples")
         methods = methods[:500]
-        
+
+    # Split data into training and test sets
+    print(f"\nData Split:")
+    
     train_methods, test_methods = train_test_split(methods, test_size=0.2, random_state=42)
     
-    print(f"\nData Split:")
     print(f"Training set: {len(train_methods)} methods")
     print(f"Test set: {len(test_methods)} methods")
     
