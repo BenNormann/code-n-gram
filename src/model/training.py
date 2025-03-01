@@ -1,164 +1,301 @@
-import pandas as pd
-from collections import defaultdict
-from typing import List, Tuple, Optional
-from pygments.lexers import get_lexer_by_name
-from pygments.token import Token
-import argparse
-from sklearn.model_selection import train_test_split
+"""
+N-gram model for code completion.
+Provides training and prediction functionality with progress tracking.
+"""
+
 import os
-from tqdm import tqdm
 import sys
+import argparse
+import pickle
+import json
 from pathlib import Path
+from typing import List, Tuple, Dict, Optional, Set
+from tqdm import tqdm
 import numpy as np
 
+# Add src directory to path for imports
 sys.path.append(str(Path(__file__).parent))
 
-from evaluation import evaluate_model, save_metrics, print_metrics
+from model.data_handling import (
+    validate_data_file, 
+    ensure_directory_exists, 
+    tokenize_code, 
+    pad_tokens, 
+    load_and_tokenize_data, 
+    split_data
+)
+
+from model.evaluation import evaluate_model, print_metrics, save_metrics
+
 
 class NGramModel:
-    def __init__(self, n: int = 7, smoothing_k: float = 0.1, vocabulary: set = None):
+    """N-gram language model for code completion."""
+    
+    def __init__(self, n: int = 4, smoothing_k: float = 0.01, lambda_factor: float = 0.4):
+        """
+        Initialize model with n-gram size and smoothing parameter.
+        
+        @input n: The n-gram size
+        @input smoothing_k: The smoothing parameter
+        @input lambda_factor: Interpolation factor for backoff (0-1)
+        """
+        if n < 1 or smoothing_k < 0:
+            raise ValueError("n must be ≥1 and smoothing_k must be ≥0")
+            
         self.n = n
         self.smoothing_k = smoothing_k
-        self.ngrams = defaultdict(lambda: defaultdict(float)) 
-        self.vocab = vocabulary if vocabulary is not None else set()
-        self.context_counts = defaultdict(float)
+        self.lambda_factor = lambda_factor
+        self.ngrams: Dict[Tuple[str, ...], Dict[str, int]] = {}
+        self.vocab: Set[str] = set()
+        self.context_counts: Dict[Tuple[str, ...], int] = {}
         
-    def tokenize_code(self, code: str) -> List[str]:
-        # Tokenize Java code using Pygments.
-        lexer = get_lexer_by_name('java')
-        tokens = []
+    def train(self, tokenized_methods: List[List[str]]):
+        """
+        Train model on a list of tokenized code methods.
         
-        for ttype, value in lexer.get_tokens(code):
-            if ttype in Token.Comment or ttype in Token.Text.Whitespace:
-                continue
-            tokens.append(value)
+        @input tokenized_methods: List of tokenized methods
+        """
+        if not tokenized_methods:
+            raise ValueError("No valid methods to train on")
             
-        return tokens
-
-    def pad_tokens(self, tokens: List[str]) -> List[str]:
-        # Add start and end tokens to a sequence
-        return ['<START>'] * (self.n - 1) + tokens + ['<END>']
-
-    def train(self, methods: List[str]):
-        print("\nProcessing training methods...")
-        # If no vocabulary was provided, build it from the training data
-        if not self.vocab:
-            print("Building vocabulary...")
-            for method in tqdm(methods, desc="Building Vocabulary"):
-                tokens = self.tokenize_code(method)
-                self.vocab.update(tokens)
-            self.vocab.add('<START>')
-            self.vocab.add('<END>')
+        # Update vocabulary with all tokens and special tokens
+        for tokens in tokenized_methods:
+            self.vocab.update(tokens)
+        self.vocab.update(['<START>', '<END>'])
+        
+        # Build n-gram counts with progress bar
+        print(f"\nTraining {self.n}-gram model...")
+        for tokens in tqdm(tokenized_methods, desc=f"Training n={self.n}"):
+            padded = pad_tokens(tokens, self.n)
             
-        for method in tqdm(methods, desc="Training"):
-            tokens = self.tokenize_code(method)
-            padded_tokens = self.pad_tokens(tokens)
-            
-            for i in range(len(padded_tokens) - self.n + 1):
-                context = tuple(padded_tokens[i:i + self.n - 1])
-                target = padded_tokens[i + self.n - 1]
-                
-                self.ngrams[context][target] += 1
-                self.context_counts[context] += 1
+            # Build counts for all n-grams up to the specified n
+            for i in range(len(padded) - self.n + 1):
+                # Process all n-gram orders from 1 to n
+                for order in range(1, self.n + 1):
+                    if i + order <= len(padded):
+                        context = tuple(padded[i:i + order - 1])
+                        target = padded[i + order - 1]
+                        
+                        if context not in self.ngrams:
+                            self.ngrams[context] = {}
+                        self.ngrams[context][target] = self.ngrams[context].get(target, 0) + 1
+                        self.context_counts[context] = self.context_counts.get(context, 0) + 1
 
-        print("\nApplying smoothing...")
-        for context in tqdm(self.ngrams, desc="Smoothing"):
-            for token in self.vocab:
-                self.ngrams[context][token] += self.smoothing_k
-                self.context_counts[context] += self.smoothing_k
-
-    def get_probability(self, context: Tuple[str, ...], token: str) -> float:
-        """Calculate smoothed probability P(token|context)."""
+    def get_raw_probability(self, context: Tuple[str, ...], token: str) -> float:
+        """
+        Calculate raw probability without backoff.
+        
+        @input context: The context tuple
+        @input token: The token to calculate probability for
+        @return: The raw probability
+        """
         if context not in self.context_counts:
-            return 1.0 / len(self.vocab) if self.vocab else 0.0
+            return 0.0
             
         count_context = self.context_counts[context]
-        count_ngram = self.ngrams[context][token]
+        count_ngram = self.ngrams[context].get(token, 0)
         
-        return count_ngram / count_context
+        # Apply smoothing
+        smoothed_count = count_ngram + self.smoothing_k
+        smoothed_total = count_context + (self.smoothing_k * len(self.vocab))
+        
+        return smoothed_count / smoothed_total
+
+    def get_probability(self, context: Tuple[str, ...], token: str) -> float:
+        """
+        Calculate smoothed probability P(token|context) with interpolation.
+        
+        @input context: The context tuple
+        @input token: The token to calculate probability for
+        @return: The probability of the token given the context
+        """
+        # Base case: unigram model or empty context
+        if not context:
+            # Uniform distribution if no context data
+            if () not in self.context_counts:
+                return 1.0 / len(self.vocab) if self.vocab else 0.0
+                
+            # Otherwise use unigram probability
+            count_total = self.context_counts[()]
+            count_token = self.ngrams[()].get(token, 0)
+            return (count_token + self.smoothing_k) / (count_total + self.smoothing_k * len(self.vocab))
+        
+        # Get probability for current context
+        higher_prob = self.get_raw_probability(context, token)
+        
+        # Interpolate with lower-order model
+        lower_context = context[1:] if len(context) > 1 else ()
+        lower_prob = self.get_probability(lower_context, token)
+        
+        # Interpolate between higher and lower order models
+        # Use more weight on higher-order model when we have data
+        if context in self.context_counts:
+            # Adjust lambda based on context frequency
+            context_weight = min(1.0, self.context_counts[context] / 10.0)
+            effective_lambda = self.lambda_factor + (1 - self.lambda_factor) * context_weight
+            return effective_lambda * higher_prob + (1 - effective_lambda) * lower_prob
+        else:
+            # Fall back to lower-order model if no data for this context
+            return lower_prob
 
     def predict_next(self, context: Tuple[str, ...]) -> Optional[Tuple[str, float]]:
-        """Predict next token with smoothed probabilities."""
+        """
+        Predict most likely next token and its probability.
+        
+        @input context: The context tuple
+        @return: Tuple of (predicted_token, probability) or None if no prediction
+        """
         if not self.vocab:
             return None
             
-        predictions = {
-            token: self.get_probability(context, token)
-            for token in self.vocab
-        }
-        
-        return max(predictions.items(), key=lambda x: x[1])
+        # Optimization: First check if we have this exact context
+        if context in self.ngrams:
+            # Get the most frequent token for this context
+            best_token = max(self.ngrams[context].items(), key=lambda x: x[1])[0]
+            prob = self.get_probability(context, best_token)
+            return (best_token, prob)
+            
+        # If we don't have the exact context, check if we have a shorter context
+        if len(context) > 1:
+            shorter_context = context[1:]
+            return self.predict_next(shorter_context)
+            
+        # If we have no context data at all, use the most frequent token overall
+        if () in self.ngrams:
+            best_token = max(self.ngrams[()].items(), key=lambda x: x[1])[0]
+            prob = self.get_probability(context, best_token)
+            return (best_token, prob)
+            
+        # Fallback to a random token from vocabulary
+        best_token = next(iter(self.vocab))
+        return (best_token, 1.0 / len(self.vocab))
 
-def build_vocabulary(methods: List[str]) -> set:
-    """Build vocabulary from all methods."""
-    print("\nBuilding global vocabulary...")
-    vocab = set()
-    
-    for method in tqdm(methods, desc="Building Vocabulary"):
-        lexer = get_lexer_by_name('java')
-        for ttype, value in lexer.get_tokens(method):
-            if ttype in Token.Comment or ttype in Token.Text.Whitespace:
-                continue
-            vocab.add(value)
-    
-    # Add special tokens
-    vocab.add('<START>')
-    vocab.add('<END>')
-    return vocab
 
-def main():
-    parser = argparse.ArgumentParser(description='Train and evaluate N-gram model')
-    parser.add_argument('--data', type=str, default='./data/processed_methods.csv')
-    parser.add_argument('--output_dir', type=str, default='./results')
-    parser.add_argument('--n', type=int, default=7)
-    parser.add_argument('--smoothing', type=float, default=0.1)
-    parser.add_argument('--overwrite_metrics', type=bool, default=True,
-                      help='Whether to overwrite existing metrics.json')
-    parser.add_argument('--eval', action='store_true',
-                      help='Run in evaluation mode with limited samples')
-    args = parser.parse_args()
+def train_and_evaluate(
+    train_data: List[List[str]], 
+    eval_data: List[List[str]], 
+    n: int = 4, 
+    smoothing_k: float = 0.01
+) -> Tuple[NGramModel, Dict]:
+    """
+    Train and evaluate an n-gram model.
     
-    os.makedirs(args.output_dir, exist_ok=True)
+    @input train_data: List of tokenized methods for training
+    @input eval_data: List of tokenized methods for evaluation
+    @input n: The n-gram size
+    @input smoothing_k: The smoothing parameter
+    @return: Tuple of (trained_model, evaluation_metrics)
+    """
+    model = NGramModel(n=n, smoothing_k=smoothing_k)
+    model.train(train_data)
     
-    # Load data
-    print("Loading and preparing data...")
-    methods = pd.read_csv(args.data)["Method Code No Comments"].dropna().tolist()
-    
-    # Limit samples in eval mode with random sampling
-    if args.eval and len(methods) > 500:
-        print("\nRunning in evaluation mode - randomly sampling 500 methods")
-        methods = np.random.choice(methods, size=500, replace=False).tolist()
-
-    # Split data into training, test, and evaluation sets
-    print(f"\nData Split:")
-    
-    # First split off training set (80%)
-    train_methods, remaining_methods = train_test_split(methods, test_size=0.2, random_state=42)
-    # Split remaining 20% equally between test and evaluation
-    test_methods, evaluation_methods = train_test_split(remaining_methods, test_size=0.5, random_state=42)
-    
-    print(f"Training set: {len(train_methods)} methods")
-    print(f"Test set: {len(test_methods)} methods")
-    print(f"Evaluation set: {len(evaluation_methods)} methods")
-    
-    # Build vocabulary from training data
-    vocabulary = build_vocabulary(train_methods)
-    print(f"\nVocabulary size: {len(vocabulary)}")
-    
-    # Train model with pre-built vocabulary
-    model = NGramModel(n=args.n, smoothing_k=args.smoothing, vocabulary=vocabulary)
-    print(f"\nTraining {args.n}-gram model...")
-    model.train(train_methods)
-    
-    # Evaluate on evaluation set
-    print("\nEvaluating on evaluation set:")
-    metrics = evaluate_model(model, evaluation_methods)
+    print(f"\nEvaluating model with n={n}...")
+    metrics = evaluate_model(model, eval_data)
     print_metrics(metrics)
     
-    # Save metrics
-    save_metrics(metrics, args.output_dir, args.overwrite_metrics)
+    return model, metrics
+
+
+def save_model(model: NGramModel, output_dir: str, filename: str = "best_model.pkl"):
+    """
+    Save model to disk using pickle.
     
-    print(f"\nResults saved to {args.output_dir}")
+    @input model: The model to save
+    @input output_dir: Directory to save the model in
+    @input filename: Filename for the saved model
+    """
+    if not ensure_directory_exists(output_dir):
+        return
+        
+    model_path = os.path.join(output_dir, filename)
+    try:
+        with open(model_path, 'wb') as f:
+            pickle.dump(model, f)
+        print(f"Model saved to {model_path}")
+    except Exception as e:
+        print(f"Error saving model: {str(e)}")
+
+
+def load_model(model_path: str) -> Optional[NGramModel]:
+    """
+    Load model from disk.
+    
+    @input model_path: Path to the saved model
+    @return: Loaded model or None if loading failed
+    """
+    if not os.path.exists(model_path):
+        print(f"Model file not found: {model_path}")
+        return None
+        
+    try:
+        with open(model_path, 'rb') as f:
+            model = pickle.load(f)
+        print(f"Model loaded from {model_path}")
+        return model
+    except Exception as e:
+        print(f"Error loading model: {str(e)}")
+        return None
+
+
+def main():
+    """Train and evaluate an n-gram model from command line."""
+    parser = argparse.ArgumentParser(description='Train and evaluate N-gram model')
+    parser.add_argument('--data', type=str, default='./data/processed_methods.csv',
+                        help='Path to CSV file with processed methods')
+    parser.add_argument('--output_dir', type=str, default='./results',
+                        help='Directory for saving results')
+    parser.add_argument('--n', type=int, default=4,
+                        help='N-gram size (default: 4)')
+    parser.add_argument('--smoothing_k', type=float, default=0.01,
+                        help='Smoothing parameter (default: 0.01)')
+    parser.add_argument('--sample_size', type=int, default=500,
+                        help='Number of methods to sample (default: 500)')
+    parser.add_argument('--save_model', action='store_true',
+                        help='Save the trained model')
+    args = parser.parse_args()
+    
+    try:
+        # Validate inputs
+        if not validate_data_file(args.data):
+            sys.exit(1)
+        if not ensure_directory_exists(args.output_dir):
+            sys.exit(1)
+        
+        # Load and tokenize data with progress bar
+        print("\nLoading and tokenizing data...")
+        tokenized_methods = load_and_tokenize_data(args.data, progress_bar=True)
+        
+        if not tokenized_methods:
+            print("No valid methods found for training")
+            sys.exit(1)
+        
+        # Split data
+        train_data, val_data, test_data = split_data(
+            tokenized_methods, 
+            sample_size=args.sample_size
+        )
+        
+        print(f"\nData split: {len(train_data)} train, {len(val_data)} validation, {len(test_data)} test")
+        
+        # Train and evaluate
+        model, metrics = train_and_evaluate(
+            train_data, 
+            val_data, 
+            n=args.n, 
+            smoothing_k=args.smoothing_k
+        )
+        
+        # Save metrics
+        save_metrics(metrics, args.output_dir, overwrite=True)
+        
+        # Save model if requested
+        if args.save_model:
+            save_model(model, args.output_dir)
+        
+    except Exception as e:
+        print(f"\nError: {str(e)}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main() 

@@ -1,83 +1,110 @@
+"""
+Complete pipeline for code completion model.
+Handles data preparation, model selection, and evaluation.
+"""
+
 import os
+import sys
 import argparse
 import json
-import pandas as pd
-import numpy as np
 from pathlib import Path
-import sys
+from typing import Dict, List, Tuple
 
+# Add src directory to path for imports
 sys.path.append(str(Path(__file__).parent))
 
+from model.data_handling import (
+    validate_data_file,
+    ensure_directory_exists,
+    load_and_tokenize_data,
+    split_data
+)
+from model.training import NGramModel, train_and_evaluate, save_model
+from model.evaluation import evaluate_model, print_metrics, save_metrics
 from data_processing.mining import extract_methods_to_csv
 from data_processing.preprocessing_java_methods import preprocess_methods
-from model.training import main as train_model, build_vocabulary, NGramModel
-from model.evaluation import evaluate_model, print_metrics, save_metrics
-from sklearn.model_selection import train_test_split
 
-def ensure_data_exists(data_dir: str, repo_list: str) -> bool:
+
+def ensure_data_exists(data_dir: str, repo_list: str):
     """
-    Ensure all necessary data files exist, running mining and preprocessing if needed.
+    Prepare data files, running mining and preprocessing if needed.
     
-    Args:
-        data_dir: Directory for data files
-        repo_list: Path to CSV containing repository list
+    @input data_dir: Directory for data files
+    @input repo_list: Path to CSV containing repository list
     """
     os.makedirs(data_dir, exist_ok=True)
     
-    extracted_methods = os.path.join(data_dir, "extracted_methods.csv")
-    processed_methods = os.path.join(data_dir, "processed_methods.csv")
+    extracted = os.path.join(data_dir, "extracted_methods.csv")
+    processed = os.path.join(data_dir, "processed_methods.csv")
     
-    # Check if we need to mine methods
-    if not os.path.exists(extracted_methods):
+    # Extract methods if needed
+    if not os.path.exists(extracted):
         print("\nMining methods from repositories...")
         if not os.path.exists(repo_list):
             raise FileNotFoundError(f"Repository list not found: {repo_list}")
-        extract_methods_to_csv(repo_list, extracted_methods, single_repo=False)
+        extract_methods_to_csv(repo_list, extracted, single_repo=False)
     
-    # Check if we need to preprocess methods
-    if not os.path.exists(processed_methods):
+    # Preprocess methods if needed
+    if not os.path.exists(processed):
         print("\nPreprocessing extracted methods...")
-        preprocess_methods(extracted_methods, processed_methods, language="java")
+        preprocess_methods(extracted, processed, language="java")
 
-def run_training_for_n(n: int, data_dir: str, output_dir: str, metrics_dict: dict, eval_mode: bool = True, overwrite: bool = False):
-    """Run training for a specific n value and update metrics dictionary."""
-    print(f"\nTraining model with n={n} {'(eval mode)' if eval_mode else '(full mode)'}")
-    sys.argv = [
-        'training.py',
-        '--data', os.path.join(data_dir, "processed_methods.csv"),
-        '--output_dir', output_dir,
-        '--n', str(n),
-        '--overwrite_metrics', str(overwrite)
-    ]
-    
-    if eval_mode:
-        sys.argv.append('--eval')
-    
-    metrics_file = os.path.join(output_dir, 'metrics.json')
-    train_model()
-    
-    # Read the metrics for this n
-    with open(metrics_file, 'r') as f:
-        metrics = json.load(f)
-    
-    # Store metrics under this n value
-    metrics_dict[f'n={n}'] = metrics
 
-def find_best_n(metrics_dict: dict) -> int:
-    """Find the n value with the lowest perplexity score."""
-    best_n = None
+def select_best_model(
+    train_data: List[List[str]], 
+    val_data: List[List[str]], 
+    n_range: Tuple[int, int] = (2, 8), 
+    smoothing_k: float = 0.01,
+    output_dir: str = './results'
+) -> Tuple[NGramModel, Dict, Dict]:
+    """
+    Train and evaluate models with different n values to select the best one.
+    
+    @input train_data: List of tokenized methods for training
+    @input val_data: List of tokenized methods for validation
+    @input n_range: Tuple of (min_n, max_n) to try
+    @input smoothing_k: Smoothing parameter
+    @input output_dir: Directory to save metrics
+    @return: Tuple of (best_model, best_metrics, all_metrics)
+    """
+    print("\nPerforming model selection...")
+    metrics_dict = {}
     best_perplexity = float('inf')
+    best_n = n_range[0]
+    best_model = None
+    best_metrics = None
     
-    for n_key, metrics in metrics_dict.items():
-        n = int(n_key.split('=')[1])
-        perplexity = metrics['perplexity']
-        if perplexity < best_perplexity:
-            best_perplexity = perplexity
+    for n in range(n_range[0], n_range[1]):  # min_n to max_n-1 inclusive
+        print(f"\nTraining model with n={n}")
+        model, metrics = train_and_evaluate(train_data, val_data, n=n, smoothing_k=smoothing_k)
+        
+        metrics_dict[f'n={n}'] = metrics
+        
+        # Track best model based on validation perplexity
+        if metrics['perplexity'] < best_perplexity:
+            best_perplexity = metrics['perplexity']
             best_n = n
+            best_model = model
+            best_metrics = metrics
     
-    return best_n
+    # Save all metrics to metrics_compare.json
+    metrics_compare_file = os.path.join(output_dir, 'metrics_compare.json')
+    with open(metrics_compare_file, 'w') as f:
+        json.dump(metrics_dict, f, indent=2)
+    print(f"Comparison metrics saved to {metrics_compare_file}")
+    
+    # Save best model metrics to metrics_selection.json
+    metrics_selection_file = os.path.join(output_dir, 'metrics_selection.json')
+    with open(metrics_selection_file, 'w') as f:
+        json.dump({f'n={best_n}': best_metrics}, f, indent=2)
+    print(f"Selection metrics saved to {metrics_selection_file}")
+    
+    print(f"\nBest model: n={best_n} with validation perplexity={best_perplexity:.2f}")
+    return best_model, best_metrics, metrics_dict
+
 
 def main():
+    """Run complete training pipeline with model selection."""
     parser = argparse.ArgumentParser(description='Complete pipeline for code completion model')
     parser.add_argument('--repo_list', type=str, default='./data/data.csv',
                       help='Path to CSV containing repository list')
@@ -85,64 +112,69 @@ def main():
                       help='Directory for data files')
     parser.add_argument('--output_dir', type=str, default='./results',
                       help='Directory for results')
+    parser.add_argument('--full', action='store_true',
+                      help='Use full dataset instead of evaluation subset')
+    parser.add_argument('--min_n', type=int, default=2,
+                      help='Minimum n-gram size to try')
+    parser.add_argument('--max_n', type=int, default=8,
+                      help='Maximum n-gram size to try (exclusive)')
+    parser.add_argument('--smoothing_k', type=float, default=0.01,
+                      help='Smoothing parameter')
     args = parser.parse_args()
     
     try:
-        # Step 1: Ensure data pipeline is complete
+        # Prepare data pipeline
         ensure_data_exists(args.data_dir, args.repo_list)
+        ensure_directory_exists(args.output_dir)
         
-        # Step 2: Train and evaluate models for n=2 to n=7 in eval mode
-        metrics_dict = {}
-        
-        # Load data once
+        # Load and tokenize data
         data_file = os.path.join(args.data_dir, "processed_methods.csv")
-        print("\nLoading data...")
-        methods_df = pd.read_csv(data_file)
-        methods = methods_df["Method Code No Comments"].dropna().tolist()
+        print("\nLoading and tokenizing data...")
+        tokenized_methods = load_and_tokenize_data(data_file, progress_bar=True)
         
-        if len(methods) > 500:
-            print("\nRunning in evaluation mode - randomly sampling 500 methods")
-            methods = np.random.choice(methods, size=500, replace=False).tolist()
+        if not tokenized_methods:
+            print("No valid methods found for training")
+            sys.exit(1)
         
-        # Split data
-        train_methods, remaining = train_test_split(methods, test_size=0.2, random_state=42)
-        _, evaluation_methods = train_test_split(remaining, test_size=0.5, random_state=42)
+        # Split data with optional sampling
+        sample_size = None if args.full else 500
+        train_data, val_data, test_data = split_data(tokenized_methods, sample_size=sample_size)
         
-        # Build vocabulary once from training data
-        vocabulary = build_vocabulary(train_methods)
-        print(f"\nGlobal vocabulary size: {len(vocabulary)}")
+        print(f"\nData split: {len(train_data)} train, {len(val_data)} validation, {len(test_data)} test")
         
-        for n in range(2, 8):  # 2 to 7 inclusive
-            print(f"\nTraining model with n={n}")
-            model = NGramModel(n=n, smoothing_k=0.1, vocabulary=vocabulary)
-            model.train(train_methods)
-            
-            metrics = evaluate_model(model, evaluation_methods)
-            metrics_dict[f'n={n}'] = metrics
-            print_metrics(metrics)
+        # Perform model selection
+        best_model, _, _ = select_best_model(
+            train_data, 
+            val_data, 
+            n_range=(args.min_n, args.max_n),
+            smoothing_k=args.smoothing_k,
+            output_dir=args.output_dir
+        )
         
-        # Save evaluation metrics
-        metrics_file = os.path.join(args.output_dir, 'metrics_eval.json')
-        with open(metrics_file, 'w') as f:
-            json.dump(metrics_dict, f, indent=2)
+        # Train final model on combined train+validation data and evaluate on test set
+        print("\nTraining final model on full training data...")
+        train_val_data = train_data + val_data
+        final_model = NGramModel(n=best_model.n, smoothing_k=args.smoothing_k)
+        final_model.train(train_val_data)
         
-        # Find best n value based on perplexity
-        best_n = find_best_n(metrics_dict)
-        print(f"\nBest model found: n={best_n} with perplexity={metrics_dict[f'n={best_n}']['perplexity']}")
+        print("\nEvaluating final model on test set...")
+        final_metrics = evaluate_model(final_model, test_data)
+        print("\nFinal Test Results:")
+        print_metrics(final_metrics)
         
-        # Train full model with best n value
-        print("\nTraining full model with optimal n value...")
-        model = NGramModel(n=best_n, smoothing_k=0.1, vocabulary=vocabulary)
-        model.train(methods)  # Train on all data
+        # Save final metrics to metrics_final.json instead of metrics.json
+        metrics_final_file = os.path.join(args.output_dir, 'metrics_final.json')
+        with open(metrics_final_file, 'w') as f:
+            json.dump(final_metrics, f, indent=2)
+        print(f"Final metrics saved to {metrics_final_file}")
         
-        metrics = evaluate_model(model, evaluation_methods)
-        save_metrics(metrics, args.output_dir, True)
-        
-        print("\nFinal model training complete. Results saved to metrics.json")
+        # Save the best model
+        save_model(final_model, args.output_dir, "best_model.pkl")
         
     except Exception as e:
         print(f"\nError: {str(e)}")
-        exit(1)
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main() 

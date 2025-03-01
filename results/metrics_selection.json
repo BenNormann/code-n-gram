@@ -1,0 +1,10 @@
+{
+  "n=6": {
+    "accuracy": 0.8004,
+    "perplexity": 5.815406990434418,
+    "total_predictions": 10000,
+    "correct_predictions": 8004,
+    "vocabulary_size": 4402,
+    "tokens_evaluated": 10000
+  }
+}

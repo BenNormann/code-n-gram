@@ -1,0 +1,50 @@
+{
+  "n=2": {
+    "accuracy": 0.4953,
+    "perplexity": 13.307260989378031,
+    "total_predictions": 10000,
+    "correct_predictions": 4953,
+    "vocabulary_size": 4402,
+    "tokens_evaluated": 10000
+  },
+  "n=3": {
+    "accuracy": 0.634,
+    "perplexity": 6.673638468709589,
+    "total_predictions": 10000,
+    "correct_predictions": 6340,
+    "vocabulary_size": 4402,
+    "tokens_evaluated": 10000
+  },
+  "n=4": {
+    "accuracy": 0.7258,
+    "perplexity": 6.672125563468398,
+    "total_predictions": 10000,
+    "correct_predictions": 7258,
+    "vocabulary_size": 4402,
+    "tokens_evaluated": 10000
+  },
+  "n=5": {
+    "accuracy": 0.7678,
+    "perplexity": 7.330619770438182,
+    "total_predictions": 10000,
+    "correct_predictions": 7678,
+    "vocabulary_size": 4402,
+    "tokens_evaluated": 10000
+  },
+  "n=6": {
+    "accuracy": 0.8004,
+    "perplexity": 5.815406990434418,
+    "total_predictions": 10000,
+    "correct_predictions": 8004,
+    "vocabulary_size": 4402,
+    "tokens_evaluated": 10000
+  },
+  "n=7": {
+    "accuracy": 0.7921,
+    "perplexity": 8.183734252152814,
+    "total_predictions": 10000,
+    "correct_predictions": 7921,
+    "vocabulary_size": 4402,
+    "tokens_evaluated": 10000
+  }
+}
