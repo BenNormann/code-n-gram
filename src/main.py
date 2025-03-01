@@ -1,9 +1,18 @@
 import os
 import argparse
+import json
+import pandas as pd
+import numpy as np
+from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).parent))
+
 from data_processing.mining import extract_methods_to_csv
 from data_processing.preprocessing_java_methods import preprocess_methods
-from model.training import main as train_model
-import json
+from model.training import main as train_model, build_vocabulary, NGramModel
+from model.evaluation import evaluate_model, print_metrics, save_metrics
+from sklearn.model_selection import train_test_split
 
 def ensure_data_exists(data_dir: str, repo_list: str) -> bool:
     """
@@ -33,7 +42,6 @@ def ensure_data_exists(data_dir: str, repo_list: str) -> bool:
 def run_training_for_n(n: int, data_dir: str, output_dir: str, metrics_dict: dict, eval_mode: bool = True, overwrite: bool = False):
     """Run training for a specific n value and update metrics dictionary."""
     print(f"\nTraining model with n={n} {'(eval mode)' if eval_mode else '(full mode)'}")
-    import sys
     sys.argv = [
         'training.py',
         '--data', os.path.join(data_dir, "processed_methods.csv"),
@@ -50,16 +58,10 @@ def run_training_for_n(n: int, data_dir: str, output_dir: str, metrics_dict: dic
     
     # Read the metrics for this n
     with open(metrics_file, 'r') as f:
-        n_metrics = json.load(f)
+        metrics = json.load(f)
     
     # Store metrics under this n value
-    metrics_dict[f'n={n}'] = {
-        'accuracy': n_metrics['accuracy'],
-        'perplexity': n_metrics['perplexity'],
-        'vocabulary_size': n_metrics['vocabulary_size'],
-        'total_predictions': n_metrics['total_predictions'],
-        'correct_predictions': n_metrics['correct_predictions']
-    }
+    metrics_dict[f'n={n}'] = metrics
 
 def find_best_n(metrics_dict: dict) -> int:
     """Find the n value with the lowest perplexity score."""
@@ -92,10 +94,32 @@ def main():
         # Step 2: Train and evaluate models for n=2 to n=7 in eval mode
         metrics_dict = {}
         
+        # Load data once
+        data_file = os.path.join(args.data_dir, "processed_methods.csv")
+        print("\nLoading data...")
+        methods_df = pd.read_csv(data_file)
+        methods = methods_df["Method Code No Comments"].dropna().tolist()
+        
+        if len(methods) > 500:
+            print("\nRunning in evaluation mode - randomly sampling 500 methods")
+            methods = np.random.choice(methods, size=500, replace=False).tolist()
+        
+        # Split data
+        train_methods, remaining = train_test_split(methods, test_size=0.2, random_state=42)
+        _, evaluation_methods = train_test_split(remaining, test_size=0.5, random_state=42)
+        
+        # Build vocabulary once from training data
+        vocabulary = build_vocabulary(train_methods)
+        print(f"\nGlobal vocabulary size: {len(vocabulary)}")
+        
         for n in range(2, 8):  # 2 to 7 inclusive
-            # Only overwrite metrics.json for the first model (n=2)
-            run_training_for_n(n, args.data_dir, args.output_dir, metrics_dict, 
-                             eval_mode=True, overwrite=(n == 2))
+            print(f"\nTraining model with n={n}")
+            model = NGramModel(n=n, smoothing_k=0.1, vocabulary=vocabulary)
+            model.train(train_methods)
+            
+            metrics = evaluate_model(model, evaluation_methods)
+            metrics_dict[f'n={n}'] = metrics
+            print_metrics(metrics)
         
         # Save evaluation metrics
         metrics_file = os.path.join(args.output_dir, 'metrics_eval.json')
@@ -108,9 +132,11 @@ def main():
         
         # Train full model with best n value
         print("\nTraining full model with optimal n value...")
-        full_metrics = {}
-        run_training_for_n(best_n, args.data_dir, args.output_dir, full_metrics, 
-                          eval_mode=False, overwrite=True)
+        model = NGramModel(n=best_n, smoothing_k=0.1, vocabulary=vocabulary)
+        model.train(methods)  # Train on all data
+        
+        metrics = evaluate_model(model, evaluation_methods)
+        save_metrics(metrics, args.output_dir, True)
         
         print("\nFinal model training complete. Results saved to metrics.json")
         

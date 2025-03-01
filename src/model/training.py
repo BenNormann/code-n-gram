@@ -9,15 +9,18 @@ import os
 from tqdm import tqdm
 import sys
 from pathlib import Path
+import numpy as np
+
 sys.path.append(str(Path(__file__).parent))
+
 from evaluation import evaluate_model, save_metrics, print_metrics
 
 class NGramModel:
-    def __init__(self, n: int = 7, smoothing_k: float = 0.1):
+    def __init__(self, n: int = 7, smoothing_k: float = 0.1, vocabulary: set = None):
         self.n = n
         self.smoothing_k = smoothing_k
         self.ngrams = defaultdict(lambda: defaultdict(float)) 
-        self.vocab = set()
+        self.vocab = vocabulary if vocabulary is not None else set()
         self.context_counts = defaultdict(float)
         
     def tokenize_code(self, code: str) -> List[str]:
@@ -38,6 +41,15 @@ class NGramModel:
 
     def train(self, methods: List[str]):
         print("\nProcessing training methods...")
+        # If no vocabulary was provided, build it from the training data
+        if not self.vocab:
+            print("Building vocabulary...")
+            for method in tqdm(methods, desc="Building Vocabulary"):
+                tokens = self.tokenize_code(method)
+                self.vocab.update(tokens)
+            self.vocab.add('<START>')
+            self.vocab.add('<END>')
+            
         for method in tqdm(methods, desc="Training"):
             tokens = self.tokenize_code(method)
             padded_tokens = self.pad_tokens(tokens)
@@ -48,7 +60,6 @@ class NGramModel:
                 
                 self.ngrams[context][target] += 1
                 self.context_counts[context] += 1
-                self.vocab.add(target)
 
         print("\nApplying smoothing...")
         for context in tqdm(self.ngrams, desc="Smoothing"):
@@ -78,6 +89,23 @@ class NGramModel:
         
         return max(predictions.items(), key=lambda x: x[1])
 
+def build_vocabulary(methods: List[str]) -> set:
+    """Build vocabulary from all methods."""
+    print("\nBuilding global vocabulary...")
+    vocab = set()
+    
+    for method in tqdm(methods, desc="Building Vocabulary"):
+        lexer = get_lexer_by_name('java')
+        for ttype, value in lexer.get_tokens(method):
+            if ttype in Token.Comment or ttype in Token.Text.Whitespace:
+                continue
+            vocab.add(value)
+    
+    # Add special tokens
+    vocab.add('<START>')
+    vocab.add('<END>')
+    return vocab
+
 def main():
     parser = argparse.ArgumentParser(description='Train and evaluate N-gram model')
     parser.add_argument('--data', type=str, default='./data/processed_methods.csv')
@@ -96,27 +124,38 @@ def main():
     print("Loading and preparing data...")
     methods = pd.read_csv(args.data)["Method Code No Comments"].dropna().tolist()
     
-    # Limit samples in eval mode
+    # Limit samples in eval mode with random sampling
     if args.eval and len(methods) > 500:
-        print("\nRunning in evaluation mode - limiting to 500 samples")
-        methods = methods[:500]
+        print("\nRunning in evaluation mode - randomly sampling 500 methods")
+        methods = np.random.choice(methods, size=500, replace=False).tolist()
 
-    # Split data into training and test sets
+    # Split data into training, test, and evaluation sets
     print(f"\nData Split:")
     
-    train_methods, test_methods = train_test_split(methods, test_size=0.2, random_state=42)
+    # First split off training set (80%)
+    train_methods, remaining_methods = train_test_split(methods, test_size=0.2, random_state=42)
+    # Split remaining 20% equally between test and evaluation
+    test_methods, evaluation_methods = train_test_split(remaining_methods, test_size=0.5, random_state=42)
     
     print(f"Training set: {len(train_methods)} methods")
     print(f"Test set: {len(test_methods)} methods")
+    print(f"Evaluation set: {len(evaluation_methods)} methods")
     
-    # Train model
-    model = NGramModel(n=args.n, smoothing_k=args.smoothing)
+    # Build vocabulary from training data
+    vocabulary = build_vocabulary(train_methods)
+    print(f"\nVocabulary size: {len(vocabulary)}")
+    
+    # Train model with pre-built vocabulary
+    model = NGramModel(n=args.n, smoothing_k=args.smoothing, vocabulary=vocabulary)
     print(f"\nTraining {args.n}-gram model...")
     model.train(train_methods)
     
-    # Evaluate model
-    metrics = evaluate_model(model, test_methods)
+    # Evaluate on evaluation set
+    print("\nEvaluating on evaluation set:")
+    metrics = evaluate_model(model, evaluation_methods)
     print_metrics(metrics)
+    
+    # Save metrics
     save_metrics(metrics, args.output_dir, args.overwrite_metrics)
     
     print(f"\nResults saved to {args.output_dir}")
