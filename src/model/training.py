@@ -1,16 +1,11 @@
 import pandas as pd
-import numpy as np
 from collections import defaultdict
-from typing import List, Dict, Tuple, Optional
+from typing import List, Tuple, Optional
 from pygments.lexers import get_lexer_by_name
 from pygments.token import Token
-import math
 import argparse
 from sklearn.model_selection import train_test_split
-import seaborn as sns
-import matplotlib.pyplot as plt
 import os
-import json
 from tqdm import tqdm
 import sys
 from pathlib import Path
