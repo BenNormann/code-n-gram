@@ -3,7 +3,6 @@ import os
 import re
 from pygments.lexers import get_lexer_by_name
 from pygments.token import Token
-from pygments.lexers.jvm import JavaLexer
 
 def remove_duplicates(data: pd.DataFrame, method_column: str = "Method Code") -> pd.DataFrame:
     """Remove duplicate methods based on method content.

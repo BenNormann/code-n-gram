@@ -1,0 +1,38 @@
+{
+  "n=2": {
+    "perplexity": 22.945164557798105,
+    "perplexity_no_punctuation": 112.87650694409486,
+    "accuracy": 0.4559692660764967,
+    "vocabulary_size": 73913
+  },
+  "n=3": {
+    "perplexity": 18.869147869467277,
+    "perplexity_no_punctuation": 66.04176202471803,
+    "accuracy": 0.5579012874147029,
+    "vocabulary_size": 73913
+  },
+  "n=4": {
+    "perplexity": 23.669581802816495,
+    "perplexity_no_punctuation": 75.9787097350793,
+    "accuracy": 0.5850596584879801,
+    "vocabulary_size": 73913
+  },
+  "n=5": {
+    "perplexity": 30.763170204741424,
+    "perplexity_no_punctuation": 91.13297536149908,
+    "accuracy": 0.5796028043266342,
+    "vocabulary_size": 73913
+  },
+  "n=6": {
+    "perplexity": 41.56741421465794,
+    "perplexity_no_punctuation": 120.05591713205479,
+    "accuracy": 0.5601710797520855,
+    "vocabulary_size": 73913
+  },
+  "n=7": {
+    "perplexity": 51.128045601933124,
+    "perplexity_no_punctuation": 143.74234675130404,
+    "accuracy": 0.5420235324587499,
+    "vocabulary_size": 73913
+  }
+}
