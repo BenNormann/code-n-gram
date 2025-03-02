@@ -4,26 +4,11 @@ Provides training and prediction functionality with progress tracking.
 """
 
 import os
-import sys
-import argparse
 import pickle
-from pathlib import Path
 from typing import List, Tuple, Dict, Optional, Set
 from tqdm import tqdm
 
-# Add src directory to path for imports
-sys.path.append(str(Path(__file__).parent))
-
-from model.data_handling import (
-    validate_data_file, 
-    ensure_directory_exists, 
-    tokenize_code, 
-    pad_tokens, 
-    load_and_tokenize_data, 
-    split_data
-)
-
-from model.evaluation import evaluate_model, print_metrics, save_metrics
+from model.data_handling import pad_tokens
 
 
 class NGramModel:
@@ -169,31 +154,6 @@ class NGramModel:
         return (best_token, 1.0 / len(self.vocab))
 
 
-def train_and_evaluate(
-    train_data: List[List[str]], 
-    eval_data: List[List[str]], 
-    n: int = 4, 
-    smoothing_k: float = 0.01
-) -> Tuple[NGramModel, Dict]:
-    """
-    Train and evaluate an n-gram model.
-    
-    @input train_data: List of tokenized methods for training
-    @input eval_data: List of tokenized methods for evaluation
-    @input n: The n-gram size
-    @input smoothing_k: The smoothing parameter
-    @return: Tuple of (trained_model, evaluation_metrics)
-    """
-    model = NGramModel(n=n, smoothing_k=smoothing_k)
-    model.train(train_data)
-    
-    print(f"\nEvaluating model with n={n}...")
-    metrics = evaluate_model(model, eval_data)
-    print_metrics(metrics)
-    
-    return model, metrics
-
-
 def save_model(model: NGramModel, output_dir: str, filename: str = "best_model.pkl"):
     """
     Save model to disk using pickle.
@@ -202,10 +162,9 @@ def save_model(model: NGramModel, output_dir: str, filename: str = "best_model.p
     @input output_dir: Directory to save the model in
     @input filename: Filename for the saved model
     """
-    if not ensure_directory_exists(output_dir):
-        return
-        
+    os.makedirs(output_dir, exist_ok=True)
     model_path = os.path.join(output_dir, filename)
+    
     try:
         with open(model_path, 'wb') as f:
             pickle.dump(model, f)
@@ -232,68 +191,4 @@ def load_model(model_path: str) -> Optional[NGramModel]:
         return model
     except Exception as e:
         print(f"Error loading model: {str(e)}")
-        return None
-
-
-def main():
-    """Train and evaluate an n-gram model from command line."""
-    parser = argparse.ArgumentParser(description='Train and evaluate N-gram model')
-    parser.add_argument('--data', type=str, default='./data/processed_methods.csv',
-                        help='Path to CSV file with processed methods')
-    parser.add_argument('--output_dir', type=str, default='./results',
-                        help='Directory for saving results')
-    parser.add_argument('--n', type=int, default=4,
-                        help='N-gram size (default: 4)')
-    parser.add_argument('--smoothing_k', type=float, default=0.01,
-                        help='Smoothing parameter (default: 0.01)')
-    parser.add_argument('--sample_size', type=int, default=500,
-                        help='Number of methods to sample (default: 500)')
-    parser.add_argument('--save_model', action='store_true',
-                        help='Save the trained model')
-    args = parser.parse_args()
-    
-    try:
-        # Validate inputs
-        if not validate_data_file(args.data):
-            sys.exit(1)
-        if not ensure_directory_exists(args.output_dir):
-            sys.exit(1)
-        
-        # Load and tokenize data with progress bar
-        print("\nLoading and tokenizing data...")
-        tokenized_methods = load_and_tokenize_data(args.data, progress_bar=True)
-        
-        if not tokenized_methods:
-            print("No valid methods found for training")
-            sys.exit(1)
-        
-        # Split data
-        train_data, val_data, test_data = split_data(
-            tokenized_methods, 
-            sample_size=args.sample_size
-        )
-        
-        print(f"\nData split: {len(train_data)} train, {len(val_data)} validation, {len(test_data)} test")
-        
-        # Train and evaluate
-        model, metrics = train_and_evaluate(
-            train_data, 
-            val_data, 
-            n=args.n, 
-            smoothing_k=args.smoothing_k
-        )
-        
-        # Save metrics
-        save_metrics(metrics, args.output_dir, overwrite=True)
-        
-        # Save model if requested
-        if args.save_model:
-            save_model(model, args.output_dir)
-        
-    except Exception as e:
-        print(f"\nError: {str(e)}")
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main() 
+        return None 

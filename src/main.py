@@ -14,40 +14,12 @@ from typing import Dict, List, Tuple
 sys.path.append(str(Path(__file__).parent))
 
 from model.data_handling import (
-    validate_data_file,
     ensure_directory_exists,
     load_and_tokenize_data,
     split_data
 )
-from model.training import NGramModel, train_and_evaluate, save_model
+from model.training import NGramModel, save_model
 from model.evaluation import evaluate_model, print_metrics, save_metrics
-from data_processing.mining import extract_methods_to_csv
-from data_processing.preprocessing_java_methods import preprocess_methods
-
-
-def ensure_data_exists(data_dir: str, repo_list: str):
-    """
-    Prepare data files, running mining and preprocessing if needed.
-    
-    @input data_dir: Directory for data files
-    @input repo_list: Path to CSV containing repository list
-    """
-    os.makedirs(data_dir, exist_ok=True)
-    
-    extracted = os.path.join(data_dir, "extracted_methods.csv")
-    processed = os.path.join(data_dir, "processed_methods.csv")
-    
-    # Extract methods if needed
-    if not os.path.exists(extracted):
-        print("\nMining methods from repositories...")
-        if not os.path.exists(repo_list):
-            raise FileNotFoundError(f"Repository list not found: {repo_list}")
-        extract_methods_to_csv(repo_list, extracted, single_repo=False)
-    
-    # Preprocess methods if needed
-    if not os.path.exists(processed):
-        print("\nPreprocessing extracted methods...")
-        preprocess_methods(extracted, processed, language="java")
 
 
 def filter_comparison_metrics(metrics: Dict) -> Dict:
@@ -59,9 +31,8 @@ def filter_comparison_metrics(metrics: Dict) -> Dict:
     """
     return {
         'perplexity': metrics['perplexity'],
-        'perplexity_no_padding': metrics.get('perplexity_no_padding', None),
+        'perplexity_no_punctuation': metrics['perplexity_no_punctuation'],
         'accuracy': metrics['accuracy'],
-        'token_type_perplexities': metrics.get('token_type_perplexities', {}),
         'vocabulary_size': metrics['vocabulary_size']
     }
 
@@ -92,9 +63,14 @@ def select_best_model(
     
     for n in range(n_range[0], n_range[1]):  # min_n to max_n-1 inclusive
         print(f"\nTraining model with n={n}")
-        model, metrics = train_and_evaluate(train_data, val_data, n=n, smoothing_k=smoothing_k)
+        model = NGramModel(n=n, smoothing_k=smoothing_k)
+        model.train(train_data)
         
-        # Store only essential metrics for comparison
+        print(f"\nEvaluating model with n={n}...")
+        metrics = evaluate_model(model, val_data)
+        print_metrics(metrics)
+        
+        # Store metrics for comparison
         metrics_dict[f'n={n}'] = filter_comparison_metrics(metrics)
         
         # Track best model based on validation perplexity
@@ -117,61 +93,63 @@ def select_best_model(
 def main():
     """Run complete training pipeline with model selection."""
     parser = argparse.ArgumentParser(description='Complete pipeline for code completion model')
-    parser.add_argument('--repo_list', type=str, default='./data/data.csv',
-                      help='Path to CSV containing repository list')
-    parser.add_argument('--data_dir', type=str, default='./data',
-                      help='Directory for data files')
+    parser.add_argument('--processed_file', type=str, default='./data/processed_methods.csv',
+                      help='Path to processed methods CSV file with "Method Code No Comments" column')
     parser.add_argument('--output_dir', type=str, default='./results',
                       help='Directory for results')
-    parser.add_argument('--full', action='store_true',
-                      help='Use full dataset for model selection instead of a subset')
     parser.add_argument('--min_n', type=int, default=2,
                       help='Minimum n-gram size to try')
     parser.add_argument('--max_n', type=int, default=8,
                       help='Maximum n-gram size to try (exclusive)')
     parser.add_argument('--smoothing_k', type=float, default=0.01,
                       help='Smoothing parameter')
+    parser.add_argument('--training_txt', type=str, default=None,
+                      help='Path to a text file with one method per line to use for training')
     args = parser.parse_args()
     
     try:
-        # Prepare data pipeline
-        ensure_data_exists(args.data_dir, args.repo_list)
+        # Create output directory
         ensure_directory_exists(args.output_dir)
         
-        # Load and tokenize data
-        data_file = os.path.join(args.data_dir, "processed_methods.csv")
-        print("\nLoading and tokenizing data...")
-        tokenized_methods = load_and_tokenize_data(data_file, progress_bar=True)
+        # Load data - either from training.txt or from processed CSV file
+        if args.training_txt:
+            print(f"\nLoading data directly from {args.training_txt}...")
+            with open(args.training_txt, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            # Process the lines - one method per line
+            tokenized_methods = []
+            for line in lines:
+                line = line.strip()
+                if line:
+                    # Split the line into tokens
+                    tokens = line.split()
+                    tokenized_methods.append(tokens)
+            
+            print(f"Loaded {len(tokenized_methods)} methods from {args.training_txt}")
+        else:
+            # Load from processed CSV file
+            processed_file = args.processed_file
+            if not os.path.exists(processed_file):
+                raise FileNotFoundError(f"Processed methods file not found: {processed_file}")
+                
+            print(f"\nLoading and tokenizing data from {processed_file}...")
+            tokenized_methods = load_and_tokenize_data(processed_file, progress_bar=True)
         
         if not tokenized_methods:
             print("No valid methods found for training")
             sys.exit(1)
         
-        # Load the full dataset first
-        print(f"\nLoaded {len(tokenized_methods)} methods from dataset")
-        
         # Split the full dataset for final evaluation
-        train_full, val_full, test_data = split_data(tokenized_methods)
-        full_training_data = train_full + val_full  # Combine train and validation for final training
+        train_data, val_data, test_data = split_data(tokenized_methods)
+        full_training_data = train_data + val_data  # Combine train and validation for final training
         
-        # For model selection, use either the full dataset or a sample
-        if args.full:
-            # Use the full training and validation sets for model selection
-            train_selection = train_full
-            val_selection = val_full
-            print(f"Using full dataset for model selection: {len(train_selection)} train, {len(val_selection)} validation")
-        else:
-            # Use a smaller sample for faster model selection
-            sample_size = 500
-            train_sample, val_sample, _ = split_data(tokenized_methods, sample_size=sample_size)
-            train_selection = train_sample
-            val_selection = val_sample
-            print(f"Using sample for model selection: {len(train_selection)} train, {len(val_selection)} validation")
+        print(f"\nData split: {len(train_data)} train, {len(val_data)} validation, {len(test_data)} test")
         
-        # Perform model selection on the selection dataset
+        # Perform model selection
         best_model, _, _ = select_best_model(
-            train_selection, 
-            val_selection, 
+            train_data, 
+            val_data, 
             n_range=(args.min_n, args.max_n),
             smoothing_k=args.smoothing_k,
             output_dir=args.output_dir
@@ -188,17 +166,8 @@ def main():
         print_metrics(final_metrics)
         
         # Save final metrics to metrics.json
-        metrics_file = os.path.join(args.output_dir, 'metrics.json')
-        
-        # Save both full metrics and filtered metrics
-        final_metrics_to_save = {
-            'full': final_metrics,
-            'essential': filter_comparison_metrics(final_metrics)
-        }
-        
-        with open(metrics_file, 'w') as f:
-            json.dump(final_metrics_to_save, f, indent=2)
-        print(f"Final metrics saved to {metrics_file}")
+        save_metrics(final_metrics, args.output_dir)
+        print(f"Final metrics saved to {os.path.join(args.output_dir, 'metrics.json')}")
         
         # Save the best model
         save_model(final_model, args.output_dir, "best_model.pkl")

@@ -1,80 +1,80 @@
 {
   "n=2": {
-    "perplexity": 12.491402536955723,
-    "perplexity_no_padding": 12.86517599985631,
-    "accuracy": 0.4991886409736308,
+    "perplexity": 19.16861396762878,
+    "perplexity_no_padding": 21.677045424626318,
+    "accuracy": 0.4816396242527754,
     "token_type_perplexities": {
-      "padding": 3.007132029259708,
-      "punctuation": 2.9430175683066535,
-      "keywords": 10.518089731925615,
-      "identifiers": 89.05331101948298,
-      "other": 379.6136089039789
+      "padding": 5.135423811116211,
+      "punctuation": 5.288142223153174,
+      "keywords": 18.90693774680926,
+      "identifiers": 296.1316344216311,
+      "other": 11.650561903932713
     },
-    "vocabulary_size": 1811
+    "vocabulary_size": 1127
   },
   "n=3": {
-    "perplexity": 7.577995905144353,
-    "perplexity_no_padding": 7.768336745826784,
-    "accuracy": 0.61947261663286,
+    "perplexity": 15.901077793789034,
+    "perplexity_no_padding": 19.61215921450222,
+    "accuracy": 0.5491033304867634,
     "token_type_perplexities": {
-      "padding": 3.4374246776880266,
-      "punctuation": 2.7882899276640094,
-      "keywords": 7.820570138758818,
-      "identifiers": 29.322162596293257,
-      "other": 76.85749401013852
+      "padding": 3.8137047753042372,
+      "punctuation": 5.212606103983833,
+      "keywords": 17.368263411089774,
+      "identifiers": 349.36418588267856,
+      "other": 7.544781842128387
     },
-    "vocabulary_size": 1811
+    "vocabulary_size": 1127
   },
   "n=4": {
-    "perplexity": 6.966984779944412,
-    "perplexity_no_padding": 6.74934408037055,
-    "accuracy": 0.7040567951318458,
+    "perplexity": 15.723524322289798,
+    "perplexity_no_padding": 20.798312310475467,
+    "accuracy": 0.5397096498719044,
     "token_type_perplexities": {
-      "padding": 14.757735994558683,
-      "punctuation": 2.914824915171974,
-      "keywords": 6.909536187046482,
-      "identifiers": 18.076870635257443,
-      "other": 75.1902762362269
+      "padding": 4.04364706600356,
+      "punctuation": 6.113969703939296,
+      "keywords": 14.422864490856181,
+      "identifiers": 268.7419778933098,
+      "other": 8.084356198635396
     },
-    "vocabulary_size": 1811
+    "vocabulary_size": 1127
   },
   "n=5": {
-    "perplexity": 7.429323922587314,
-    "perplexity_no_padding": 7.05760770540023,
-    "accuracy": 0.7176470588235294,
+    "perplexity": 17.040119809818975,
+    "perplexity_no_padding": 21.32902854156528,
+    "accuracy": 0.5311699402220325,
     "token_type_perplexities": {
-      "padding": 19.420097645233152,
-      "punctuation": 3.221085083860051,
-      "keywords": 6.861839178592975,
-      "identifiers": 17.12841788299219,
-      "other": 73.28628107068329
+      "padding": 7.452267279144856,
+      "punctuation": 6.808314342714518,
+      "keywords": 18.107276483935347,
+      "identifiers": 237.32508320132635,
+      "other": 9.408934845224406
     },
-    "vocabulary_size": 1811
+    "vocabulary_size": 1127
   },
   "n=6": {
-    "perplexity": 7.9536184639862775,
-    "perplexity_no_padding": 7.419658131936504,
-    "accuracy": 0.7310344827586207,
+    "perplexity": 21.479572368671196,
+    "perplexity_no_padding": 26.3163160262595,
+    "accuracy": 0.47907771135781385,
     "token_type_perplexities": {
-      "padding": 23.24641614881412,
-      "punctuation": 3.4839089741901543,
-      "keywords": 7.0490447849068385,
-      "identifiers": 17.43772984604914,
-      "other": 69.46010620229163
+      "padding": 11.911136240254937,
+      "punctuation": 8.69088034093746,
+      "keywords": 17.918023808807206,
+      "identifiers": 355.7454550961585,
+      "other": 10.16351879614677
     },
-    "vocabulary_size": 1811
+    "vocabulary_size": 1127
   },
   "n=7": {
-    "perplexity": 8.549260841690087,
-    "perplexity_no_padding": 7.856216815010283,
-    "accuracy": 0.7371196754563895,
+    "perplexity": 22.863061419661875,
+    "perplexity_no_padding": 29.283496877571036,
+    "accuracy": 0.47224594363791633,
     "token_type_perplexities": {
-      "padding": 25.844728315248094,
-      "punctuation": 3.8145148596410055,
-      "keywords": 6.752732170913166,
-      "identifiers": 17.911054827326677,
-      "other": 69.73302665284153
+      "padding": 12.793723116743061,
+      "punctuation": 9.913635509690184,
+      "keywords": 24.747700543909733,
+      "identifiers": 328.0559692245832,
+      "other": 10.683186773991784
     },
-    "vocabulary_size": 1811
+    "vocabulary_size": 1127
   }
 }
