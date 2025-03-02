@@ -30,12 +30,12 @@ pip install -r requirements.txt
 
 **Option 1:** Using a CSV file with Java methods
 ```bash
-python src/main.py --processed_file path/to/methods.csv
+python src/main.py --processed_file data/processed_methods.csv
 ```
 
 **Option 2:** Using a text file (one method per line)
 ```bash
-python src/main.py --training_txt path/to/training.txt
+python src/main.py --training_txt data/training.txt --output_dir results_teacher
 ```
 
 ### Quick Mode for Faster Development
@@ -43,7 +43,7 @@ python src/main.py --training_txt path/to/training.txt
 For faster experimentation, use the `--quick` flag to train on a smaller sample:
 
 ```bash
-python src/main.py --processed_file path/to/methods.csv --quick
+python src/main.py --processed_file data/methods.csv --quick
 ```
 
 This will:

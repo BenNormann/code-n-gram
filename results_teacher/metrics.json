@@ -1,0 +1,6 @@
+{
+  "accuracy": 0.5566863696515219,
+  "perplexity": 19.310472139302536,
+  "perplexity_no_punctuation": 68.69506392102848,
+  "vocabulary_size": 80212
+}

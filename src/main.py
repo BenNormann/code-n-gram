@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-# Add src directory to path for imports
+# Add src directory to path for imports because it was giving errors otherwid
 sys.path.append(str(Path(__file__).parent))
 
 from model.data_handling import (

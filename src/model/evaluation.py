@@ -48,6 +48,13 @@ def evaluate_model(model: Any, eval_methods: List[List[str]]) -> Dict:
             # Determine if token is punctuation
             is_punct = actual in punctuation
             
+            # OPTIMIZATION: Get both prediction and probability in one pass
+            # First check if we have this exact context for prediction
+            pred_token = None
+            if context in model.ngrams:
+                # Get the most frequent token for this context
+                pred_token = max(model.ngrams[context].items(), key=lambda x: x[1])[0]
+            
             # Get probability of actual token for perplexity calculation
             actual_prob = model.get_probability(context, actual)
             
@@ -58,23 +65,22 @@ def evaluate_model(model: Any, eval_methods: List[List[str]]) -> Dict:
             # Update log probability
             current_log_prob = math.log2(actual_prob)
             log_prob += current_log_prob
+            total += 1
             
             # Track non-punctuation statistics separately
             if not is_punct:
                 non_punct_log_prob += current_log_prob
                 non_punct_total += 1
             
-            # Get prediction for accuracy calculation
-            if pred := model.predict_next(context):
-                pred_token, _ = pred
+            # Check prediction accuracy
+            if pred_token:
                 is_correct = (actual == pred_token)
                 correct += is_correct
-                total += 1
                 
                 # Track non-punctuation accuracy separately
                 if not is_punct and is_correct:
                     non_punct_correct += 1
-    
+            
     # Calculate final metrics
     perplexity = 2 ** (-log_prob / total) if total else float('inf')
     non_punct_perplexity = 2 ** (-non_punct_log_prob / non_punct_total) if non_punct_total else float('inf')

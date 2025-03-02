@@ -36,32 +36,46 @@ class NGramModel:
         """
         Train model on a list of tokenized code methods.
         
+        This method builds an n-gram language model for code completion.
+        For an n-gram model (e.g., n=7), we count occurrences of all contexts
+        of length 1 to n-1 and their following tokens to calculate conditional
+        probabilities P(token | context).
+        
         @input tokenized_methods: List of tokenized methods
         """
         if not tokenized_methods:
             raise ValueError("No valid methods to train on")
             
-        # Update vocabulary with all tokens and special tokens
+        # Build vocabulary from all tokens in the training data
+        print("Building vocabulary...")
         for tokens in tokenized_methods:
             self.vocab.update(tokens)
+        # Add special tokens for sequence boundaries
         self.vocab.update(['<START>', '<END>'])
         
-        # Build n-gram counts with progress bar
+        # Train the n-gram model with progress tracking
         print(f"\nTraining {self.n}-gram model...")
         for tokens in tqdm(tokenized_methods, desc=f"Training n={self.n}"):
             padded = pad_tokens(tokens, self.n)
             
-            # Build counts for all n-grams up to the specified n
+            # For each position in the padded token sequence
             for i in range(len(padded) - self.n + 1):
-                # Process all n-gram orders from 1 to n
+                # Build all n-gram orders from 1 to n
+                # This enables backoff to lower-order models during prediction
                 for order in range(1, self.n + 1):
                     if i + order <= len(padded):
-                        context = tuple(padded[i:i + order - 1])
-                        target = padded[i + order - 1]
+                        # Extract context (preceding tokens) and target token
+                        context = tuple(padded[i:i + order - 1])  # Context of length (order-1)
+                        target = padded[i + order - 1]            # Target token to predict
                         
+                        # Initialize context entry if first occurrence
                         if context not in self.ngrams:
                             self.ngrams[context] = {}
+                        
+                        # Count target token occurrences for this context
                         self.ngrams[context][target] = self.ngrams[context].get(target, 0) + 1
+                        
+                        # Count total occurrences of this context
                         self.context_counts[context] = self.context_counts.get(context, 0) + 1
 
     def get_raw_probability(self, context: Tuple[str, ...], token: str) -> float:
