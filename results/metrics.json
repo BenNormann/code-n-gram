@@ -1,64 +1,6 @@
 {
-  "full": {
-    "accuracy": 0.632801058667843,
-    "perplexity": 24.25866484486639,
-    "perplexity_no_padding": 28.86059304345099,
-    "total_predictions": 283375,
-    "correct_predictions": 179320,
-    "vocabulary_size": 80209,
-    "non_padding_accuracy": 0.6081273754494093,
-    "non_padding_tokens": 243375,
-    "token_type_stats": {
-      "padding": {
-        "count": 40000,
-        "correct": 31317,
-        "log_prob_sum": -123027.16097895426,
-        "accuracy": 0.782925
-      },
-      "punctuation": {
-        "count": 138359,
-        "correct": 106347,
-        "log_prob_sum": -445264.1710193633,
-        "accuracy": 0.7686308805354187
-      },
-      "keywords": {
-        "count": 25326,
-        "correct": 10795,
-        "log_prob_sum": -96180.68280312579,
-        "accuracy": 0.4262418068388218
-      },
-      "identifiers": {
-        "count": 72624,
-        "correct": 26136,
-        "log_prob_sum": -610370.6223183353,
-        "accuracy": 0.359881031064111
-      },
-      "other": {
-        "count": 7066,
-        "correct": 4725,
-        "log_prob_sum": -28803.716546531494,
-        "accuracy": 0.6686951599207472
-      }
-    },
-    "token_type_perplexities": {
-      "padding": 8.4308554532691,
-      "punctuation": 9.30612155717817,
-      "keywords": 13.906671330440531,
-      "identifiers": 338.856465865745,
-      "other": 16.869931247126438
-    }
-  },
-  "essential": {
-    "perplexity": 24.25866484486639,
-    "perplexity_no_padding": 28.86059304345099,
-    "accuracy": 0.632801058667843,
-    "token_type_perplexities": {
-      "padding": 8.4308554532691,
-      "punctuation": 9.30612155717817,
-      "keywords": 13.906671330440531,
-      "identifiers": 338.856465865745,
-      "other": 16.869931247126438
-    },
-    "vocabulary_size": 80209
-  }
+  "accuracy": 0.5837106307895897,
+  "perplexity": 19.310472139302536,
+  "perplexity_no_punctuation": 68.69506392102848,
+  "vocabulary_size": 80212
 }

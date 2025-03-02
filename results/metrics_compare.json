@@ -1,80 +1,38 @@
 {
   "n=2": {
-    "perplexity": 19.16861396762878,
-    "perplexity_no_padding": 21.677045424626318,
-    "accuracy": 0.4816396242527754,
-    "token_type_perplexities": {
-      "padding": 5.135423811116211,
-      "punctuation": 5.288142223153174,
-      "keywords": 18.90693774680926,
-      "identifiers": 296.1316344216311,
-      "other": 11.650561903932713
-    },
-    "vocabulary_size": 1127
+    "perplexity": 23.208220316352936,
+    "perplexity_no_punctuation": 115.20569946157529,
+    "accuracy": 0.4411134903640257,
+    "vocabulary_size": 1975
   },
   "n=3": {
-    "perplexity": 15.901077793789034,
-    "perplexity_no_padding": 19.61215921450222,
-    "accuracy": 0.5491033304867634,
-    "token_type_perplexities": {
-      "padding": 3.8137047753042372,
-      "punctuation": 5.212606103983833,
-      "keywords": 17.368263411089774,
-      "identifiers": 349.36418588267856,
-      "other": 7.544781842128387
-    },
-    "vocabulary_size": 1127
+    "perplexity": 19.08583891586984,
+    "perplexity_no_punctuation": 78.41668168030989,
+    "accuracy": 0.5285510349750179,
+    "vocabulary_size": 1975
   },
   "n=4": {
-    "perplexity": 15.723524322289798,
-    "perplexity_no_padding": 20.798312310475467,
-    "accuracy": 0.5397096498719044,
-    "token_type_perplexities": {
-      "padding": 4.04364706600356,
-      "punctuation": 6.113969703939296,
-      "keywords": 14.422864490856181,
-      "identifiers": 268.7419778933098,
-      "other": 8.084356198635396
-    },
-    "vocabulary_size": 1127
+    "perplexity": 20.500677761987582,
+    "perplexity_no_punctuation": 84.35431468540612,
+    "accuracy": 0.5192719486081371,
+    "vocabulary_size": 1975
   },
   "n=5": {
-    "perplexity": 17.040119809818975,
-    "perplexity_no_padding": 21.32902854156528,
-    "accuracy": 0.5311699402220325,
-    "token_type_perplexities": {
-      "padding": 7.452267279144856,
-      "punctuation": 6.808314342714518,
-      "keywords": 18.107276483935347,
-      "identifiers": 237.32508320132635,
-      "other": 9.408934845224406
-    },
-    "vocabulary_size": 1127
+    "perplexity": 22.391188764010952,
+    "perplexity_no_punctuation": 90.59417451237674,
+    "accuracy": 0.5199857244825125,
+    "vocabulary_size": 1975
   },
   "n=6": {
-    "perplexity": 21.479572368671196,
-    "perplexity_no_padding": 26.3163160262595,
-    "accuracy": 0.47907771135781385,
-    "token_type_perplexities": {
-      "padding": 11.911136240254937,
-      "punctuation": 8.69088034093746,
-      "keywords": 17.918023808807206,
-      "identifiers": 355.7454550961585,
-      "other": 10.16351879614677
-    },
-    "vocabulary_size": 1127
+    "perplexity": 25.97498170392377,
+    "perplexity_no_punctuation": 106.65350013211717,
+    "accuracy": 0.4982155603140614,
+    "vocabulary_size": 1975
   },
   "n=7": {
-    "perplexity": 22.863061419661875,
-    "perplexity_no_padding": 29.283496877571036,
-    "accuracy": 0.47224594363791633,
-    "token_type_perplexities": {
-      "padding": 12.793723116743061,
-      "punctuation": 9.913635509690184,
-      "keywords": 24.747700543909733,
-      "identifiers": 328.0559692245832,
-      "other": 10.683186773991784
-    },
-    "vocabulary_size": 1127
+    "perplexity": 28.223872000171482,
+    "perplexity_no_punctuation": 115.58517243804413,
+    "accuracy": 0.4842969307637402,
+    "vocabulary_size": 1975
   }
 }

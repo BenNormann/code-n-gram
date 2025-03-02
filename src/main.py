@@ -16,7 +16,8 @@ sys.path.append(str(Path(__file__).parent))
 from model.data_handling import (
     ensure_directory_exists,
     load_and_tokenize_data,
-    split_data
+    split_data,
+    tokenize_code
 )
 from model.training import NGramModel, save_model
 from model.evaluation import evaluate_model, print_metrics, save_metrics
@@ -105,6 +106,8 @@ def main():
                       help='Smoothing parameter')
     parser.add_argument('--training_txt', type=str, default=None,
                       help='Path to a text file with one method per line to use for training')
+    parser.add_argument('--quick', action='store_true',
+                      help='Use a smaller sample (1000 methods) for faster model selection')
     args = parser.parse_args()
     
     try:
@@ -122,9 +125,9 @@ def main():
             for line in lines:
                 line = line.strip()
                 if line:
-                    # Split the line into tokens
-                    tokens = line.split()
-                    tokenized_methods.append(tokens)
+                    tokens = tokenize_code(line)
+                    if tokens:
+                        tokenized_methods.append(tokens)
             
             print(f"Loaded {len(tokenized_methods)} methods from {args.training_txt}")
         else:
@@ -141,10 +144,32 @@ def main():
             sys.exit(1)
         
         # Split the full dataset for final evaluation
-        train_data, val_data, test_data = split_data(tokenized_methods)
-        full_training_data = train_data + val_data  # Combine train and validation for final training
+        train_data_full, val_data_full, test_data = split_data(tokenized_methods)
+        full_training_data = train_data_full + val_data_full  # Combine train and validation for final training
         
-        print(f"\nData split: {len(train_data)} train, {len(val_data)} validation, {len(test_data)} test")
+        # For model selection, use either the full dataset or a smaller sample
+        if args.quick:
+            import random
+            # Set seed for reproducibility
+            random.seed(42)
+            
+            # Sample size for quick mode
+            sample_size = min(1000, len(tokenized_methods))
+            
+            print(f"\nQuick mode: Using a sample of {sample_size} methods for model selection")
+            
+            # Randomly sample methods
+            sampled_methods = random.sample(tokenized_methods, sample_size)
+            
+            # Split the sampled data for model selection
+            train_data, val_data, _ = split_data(sampled_methods)
+            
+            print(f"Sample split: {len(train_data)} train, {len(val_data)} validation")
+        else:
+            # Use the full dataset for model selection
+            train_data = train_data_full
+            val_data = val_data_full
+            print(f"\nData split: {len(train_data)} train, {len(val_data)} validation, {len(test_data)} test")
         
         # Perform model selection
         best_model, _, _ = select_best_model(
