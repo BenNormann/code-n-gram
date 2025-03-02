@@ -17,7 +17,7 @@ This project implements an **N-gram language model** for Java code completion. T
 ### Installation
 ```bash
 # Clone repository
-git clone https://github.com/your-repository/code-n-gram.git
+git clone https://github.com/BenNormann/code-n-gram
 cd code-n-gram
 
 # Install dependencies

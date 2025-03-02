@@ -1,38 +1,38 @@
 {
   "n=2": {
-    "perplexity": 23.208220316352936,
-    "perplexity_no_punctuation": 115.20569946157529,
-    "accuracy": 0.4411134903640257,
-    "vocabulary_size": 1975
+    "perplexity": 12.574932748090088,
+    "perplexity_no_punctuation": 56.77345551426224,
+    "accuracy": 0.49793631187298526,
+    "vocabulary_size": 4402
   },
   "n=3": {
-    "perplexity": 19.08583891586984,
-    "perplexity_no_punctuation": 78.41668168030989,
-    "accuracy": 0.5285510349750179,
-    "vocabulary_size": 1975
+    "perplexity": 6.7449213952124065,
+    "perplexity_no_punctuation": 16.282005647385226,
+    "accuracy": 0.6362184797999578,
+    "vocabulary_size": 4402
   },
   "n=4": {
-    "perplexity": 20.500677761987582,
-    "perplexity_no_punctuation": 84.35431468540612,
-    "accuracy": 0.5192719486081371,
-    "vocabulary_size": 1975
+    "perplexity": 5.928765811391084,
+    "perplexity_no_punctuation": 11.274783308007517,
+    "accuracy": 0.7356972855722592,
+    "vocabulary_size": 4402
   },
   "n=5": {
-    "perplexity": 22.391188764010952,
-    "perplexity_no_punctuation": 90.59417451237674,
-    "accuracy": 0.5199857244825125,
-    "vocabulary_size": 1975
+    "perplexity": 6.264699531573939,
+    "perplexity_no_punctuation": 10.654087928867503,
+    "accuracy": 0.777362696954177,
+    "vocabulary_size": 4402
   },
   "n=6": {
-    "perplexity": 25.97498170392377,
-    "perplexity_no_punctuation": 106.65350013211717,
-    "accuracy": 0.4982155603140614,
-    "vocabulary_size": 1975
+    "perplexity": 6.828793144261254,
+    "perplexity_no_punctuation": 10.999996598580156,
+    "accuracy": 0.8011930226252523,
+    "vocabulary_size": 4402
   },
   "n=7": {
-    "perplexity": 28.223872000171482,
-    "perplexity_no_punctuation": 115.58517243804413,
-    "accuracy": 0.4842969307637402,
-    "vocabulary_size": 1975
+    "perplexity": 7.642795438006692,
+    "perplexity_no_punctuation": 11.801489448111221,
+    "accuracy": 0.8117976681830507,
+    "vocabulary_size": 4402
   }
 }
