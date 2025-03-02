@@ -1,0 +1,64 @@
+{
+  "full": {
+    "accuracy": 0.7529716993619782,
+    "perplexity": 5.14960349591165,
+    "perplexity_no_padding": 5.016884727836512,
+    "total_predictions": 37773,
+    "correct_predictions": 28442,
+    "vocabulary_size": 4542,
+    "non_padding_accuracy": 0.7582387226872186,
+    "non_padding_tokens": 36201,
+    "token_type_stats": {
+      "padding": {
+        "count": 1572,
+        "correct": 993,
+        "log_prob_sum": -5080.609114115127,
+        "accuracy": 0.6316793893129771
+      },
+      "punctuation": {
+        "count": 20151,
+        "correct": 18485,
+        "log_prob_sum": -30088.066239425687,
+        "accuracy": 0.9173242022728401
+      },
+      "keywords": {
+        "count": 2433,
+        "correct": 1680,
+        "log_prob_sum": -6132.462490859432,
+        "accuracy": 0.6905055487053021
+      },
+      "identifiers": {
+        "count": 10848,
+        "correct": 5983,
+        "log_prob_sum": -35950.454163590846,
+        "accuracy": 0.5515302359882006
+      },
+      "other": {
+        "count": 2769,
+        "correct": 1301,
+        "log_prob_sum": -12061.206692589609,
+        "accuracy": 0.469844709281329
+      }
+    },
+    "token_type_perplexities": {
+      "padding": 9.395302677540034,
+      "punctuation": 2.814990745065407,
+      "keywords": 5.737949788845697,
+      "identifiers": 9.945313109839654,
+      "other": 20.475101993494516
+    }
+  },
+  "essential": {
+    "perplexity": 5.14960349591165,
+    "perplexity_no_padding": 5.016884727836512,
+    "accuracy": 0.7529716993619782,
+    "token_type_perplexities": {
+      "padding": 9.395302677540034,
+      "punctuation": 2.814990745065407,
+      "keywords": 5.737949788845697,
+      "identifiers": 9.945313109839654,
+      "other": 20.475101993494516
+    },
+    "vocabulary_size": 4542
+  }
+}

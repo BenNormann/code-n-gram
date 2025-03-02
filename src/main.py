@@ -50,6 +50,22 @@ def ensure_data_exists(data_dir: str, repo_list: str):
         preprocess_methods(extracted, processed, language="java")
 
 
+def filter_comparison_metrics(metrics: Dict) -> Dict:
+    """
+    Filter metrics to only include essential information for model comparison.
+    
+    @input metrics: Full metrics dictionary
+    @return: Filtered metrics with only essential information
+    """
+    return {
+        'perplexity': metrics['perplexity'],
+        'perplexity_no_padding': metrics.get('perplexity_no_padding', None),
+        'accuracy': metrics['accuracy'],
+        'token_type_perplexities': metrics.get('token_type_perplexities', {}),
+        'vocabulary_size': metrics['vocabulary_size']
+    }
+
+
 def select_best_model(
     train_data: List[List[str]], 
     val_data: List[List[str]], 
@@ -78,7 +94,8 @@ def select_best_model(
         print(f"\nTraining model with n={n}")
         model, metrics = train_and_evaluate(train_data, val_data, n=n, smoothing_k=smoothing_k)
         
-        metrics_dict[f'n={n}'] = metrics
+        # Store only essential metrics for comparison
+        metrics_dict[f'n={n}'] = filter_comparison_metrics(metrics)
         
         # Track best model based on validation perplexity
         if metrics['perplexity'] < best_perplexity:
@@ -92,12 +109,6 @@ def select_best_model(
     with open(metrics_compare_file, 'w') as f:
         json.dump(metrics_dict, f, indent=2)
     print(f"Comparison metrics saved to {metrics_compare_file}")
-    
-    # Save best model metrics to metrics_selection.json
-    metrics_selection_file = os.path.join(output_dir, 'metrics_selection.json')
-    with open(metrics_selection_file, 'w') as f:
-        json.dump({f'n={best_n}': best_metrics}, f, indent=2)
-    print(f"Selection metrics saved to {metrics_selection_file}")
     
     print(f"\nBest model: n={best_n} with validation perplexity={best_perplexity:.2f}")
     return best_model, best_metrics, metrics_dict
@@ -113,7 +124,7 @@ def main():
     parser.add_argument('--output_dir', type=str, default='./results',
                       help='Directory for results')
     parser.add_argument('--full', action='store_true',
-                      help='Use full dataset instead of evaluation subset')
+                      help='Use full dataset for model selection instead of a subset')
     parser.add_argument('--min_n', type=int, default=2,
                       help='Minimum n-gram size to try')
     parser.add_argument('--max_n', type=int, default=8,
@@ -136,37 +147,58 @@ def main():
             print("No valid methods found for training")
             sys.exit(1)
         
-        # Split data with optional sampling
-        sample_size = None if args.full else 500
-        train_data, val_data, test_data = split_data(tokenized_methods, sample_size=sample_size)
+        # Load the full dataset first
+        print(f"\nLoaded {len(tokenized_methods)} methods from dataset")
         
-        print(f"\nData split: {len(train_data)} train, {len(val_data)} validation, {len(test_data)} test")
+        # Split the full dataset for final evaluation
+        train_full, val_full, test_data = split_data(tokenized_methods)
+        full_training_data = train_full + val_full  # Combine train and validation for final training
         
-        # Perform model selection
+        # For model selection, use either the full dataset or a sample
+        if args.full:
+            # Use the full training and validation sets for model selection
+            train_selection = train_full
+            val_selection = val_full
+            print(f"Using full dataset for model selection: {len(train_selection)} train, {len(val_selection)} validation")
+        else:
+            # Use a smaller sample for faster model selection
+            sample_size = 500
+            train_sample, val_sample, _ = split_data(tokenized_methods, sample_size=sample_size)
+            train_selection = train_sample
+            val_selection = val_sample
+            print(f"Using sample for model selection: {len(train_selection)} train, {len(val_selection)} validation")
+        
+        # Perform model selection on the selection dataset
         best_model, _, _ = select_best_model(
-            train_data, 
-            val_data, 
+            train_selection, 
+            val_selection, 
             n_range=(args.min_n, args.max_n),
             smoothing_k=args.smoothing_k,
             output_dir=args.output_dir
         )
         
-        # Train final model on combined train+validation data and evaluate on test set
-        print("\nTraining final model on full training data...")
-        train_val_data = train_data + val_data
+        # Train final model on the full training data
+        print(f"\nTraining final model on full dataset ({len(full_training_data)} methods)...")
         final_model = NGramModel(n=best_model.n, smoothing_k=args.smoothing_k)
-        final_model.train(train_val_data)
+        final_model.train(full_training_data)
         
-        print("\nEvaluating final model on test set...")
+        print(f"\nEvaluating final model on test set ({len(test_data)} methods)...")
         final_metrics = evaluate_model(final_model, test_data)
         print("\nFinal Test Results:")
         print_metrics(final_metrics)
         
-        # Save final metrics to metrics_final.json instead of metrics.json
-        metrics_final_file = os.path.join(args.output_dir, 'metrics_final.json')
-        with open(metrics_final_file, 'w') as f:
-            json.dump(final_metrics, f, indent=2)
-        print(f"Final metrics saved to {metrics_final_file}")
+        # Save final metrics to metrics.json
+        metrics_file = os.path.join(args.output_dir, 'metrics.json')
+        
+        # Save both full metrics and filtered metrics
+        final_metrics_to_save = {
+            'full': final_metrics,
+            'essential': filter_comparison_metrics(final_metrics)
+        }
+        
+        with open(metrics_file, 'w') as f:
+            json.dump(final_metrics_to_save, f, indent=2)
+        print(f"Final metrics saved to {metrics_file}")
         
         # Save the best model
         save_model(final_model, args.output_dir, "best_model.pkl")

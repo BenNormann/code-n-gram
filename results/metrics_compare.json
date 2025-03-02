@@ -1,50 +1,80 @@
 {
   "n=2": {
-    "accuracy": 0.4953,
-    "perplexity": 13.307260989378031,
-    "total_predictions": 10000,
-    "correct_predictions": 4953,
-    "vocabulary_size": 4402,
-    "tokens_evaluated": 10000
+    "perplexity": 12.491402536955723,
+    "perplexity_no_padding": 12.86517599985631,
+    "accuracy": 0.4991886409736308,
+    "token_type_perplexities": {
+      "padding": 3.007132029259708,
+      "punctuation": 2.9430175683066535,
+      "keywords": 10.518089731925615,
+      "identifiers": 89.05331101948298,
+      "other": 379.6136089039789
+    },
+    "vocabulary_size": 1811
   },
   "n=3": {
-    "accuracy": 0.634,
-    "perplexity": 6.673638468709589,
-    "total_predictions": 10000,
-    "correct_predictions": 6340,
-    "vocabulary_size": 4402,
-    "tokens_evaluated": 10000
+    "perplexity": 7.577995905144353,
+    "perplexity_no_padding": 7.768336745826784,
+    "accuracy": 0.61947261663286,
+    "token_type_perplexities": {
+      "padding": 3.4374246776880266,
+      "punctuation": 2.7882899276640094,
+      "keywords": 7.820570138758818,
+      "identifiers": 29.322162596293257,
+      "other": 76.85749401013852
+    },
+    "vocabulary_size": 1811
   },
   "n=4": {
-    "accuracy": 0.7258,
-    "perplexity": 6.672125563468398,
-    "total_predictions": 10000,
-    "correct_predictions": 7258,
-    "vocabulary_size": 4402,
-    "tokens_evaluated": 10000
+    "perplexity": 6.966984779944412,
+    "perplexity_no_padding": 6.74934408037055,
+    "accuracy": 0.7040567951318458,
+    "token_type_perplexities": {
+      "padding": 14.757735994558683,
+      "punctuation": 2.914824915171974,
+      "keywords": 6.909536187046482,
+      "identifiers": 18.076870635257443,
+      "other": 75.1902762362269
+    },
+    "vocabulary_size": 1811
   },
   "n=5": {
-    "accuracy": 0.7678,
-    "perplexity": 7.330619770438182,
-    "total_predictions": 10000,
-    "correct_predictions": 7678,
-    "vocabulary_size": 4402,
-    "tokens_evaluated": 10000
+    "perplexity": 7.429323922587314,
+    "perplexity_no_padding": 7.05760770540023,
+    "accuracy": 0.7176470588235294,
+    "token_type_perplexities": {
+      "padding": 19.420097645233152,
+      "punctuation": 3.221085083860051,
+      "keywords": 6.861839178592975,
+      "identifiers": 17.12841788299219,
+      "other": 73.28628107068329
+    },
+    "vocabulary_size": 1811
   },
   "n=6": {
-    "accuracy": 0.8004,
-    "perplexity": 5.815406990434418,
-    "total_predictions": 10000,
-    "correct_predictions": 8004,
-    "vocabulary_size": 4402,
-    "tokens_evaluated": 10000
+    "perplexity": 7.9536184639862775,
+    "perplexity_no_padding": 7.419658131936504,
+    "accuracy": 0.7310344827586207,
+    "token_type_perplexities": {
+      "padding": 23.24641614881412,
+      "punctuation": 3.4839089741901543,
+      "keywords": 7.0490447849068385,
+      "identifiers": 17.43772984604914,
+      "other": 69.46010620229163
+    },
+    "vocabulary_size": 1811
   },
   "n=7": {
-    "accuracy": 0.7921,
-    "perplexity": 8.183734252152814,
-    "total_predictions": 10000,
-    "correct_predictions": 7921,
-    "vocabulary_size": 4402,
-    "tokens_evaluated": 10000
+    "perplexity": 8.549260841690087,
+    "perplexity_no_padding": 7.856216815010283,
+    "accuracy": 0.7371196754563895,
+    "token_type_perplexities": {
+      "padding": 25.844728315248094,
+      "punctuation": 3.8145148596410055,
+      "keywords": 6.752732170913166,
+      "identifiers": 17.911054827326677,
+      "other": 69.73302665284153
+    },
+    "vocabulary_size": 1811
   }
 }

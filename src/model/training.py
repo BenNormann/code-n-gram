@@ -7,11 +7,9 @@ import os
 import sys
 import argparse
 import pickle
-import json
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional, Set
 from tqdm import tqdm
-import numpy as np
 
 # Add src directory to path for imports
 sys.path.append(str(Path(__file__).parent))
